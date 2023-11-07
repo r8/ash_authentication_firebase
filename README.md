@@ -1,6 +1,11 @@
 # AshAuthentication.Firebase
 
-Firebase token authentication strategy for AshAuthentication.
+[![Hex.pm](https://img.shields.io/hexpm/v/ash_authentication_firebase.svg?style=flat-square)](https://hex.pm/packages/ash_authentication_firebase)
+[![Hex.pm](https://img.shields.io/hexpm/dt/ash_authentication_firebase.svg?style=flat-square)](https://hex.pm/packages/ash_authentication_firebase)
+
+Firebase token authentication strategy for [AshAuthentication](https://github.com/team-alembic/ash_authentication).
+
+> 🛠 In development
 
 ## Installation
 
