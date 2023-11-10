@@ -46,8 +46,8 @@ defmodule MyApp.Accounts.User do
     api MyApp.Accounts
 
     strategies do
-      firebase do
-        firebase_token_input :firebase_token
+      firebase :example do
+        token_input :firebase_token
       end
     end
   end

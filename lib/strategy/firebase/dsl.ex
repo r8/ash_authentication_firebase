@@ -11,8 +11,8 @@ defmodule AshAuthentication.Strategy.Firebase.Dsl do
       describe: "Strategy to sign in with Firebase token.",
       examples: [
         """
-        firebase do
-          firebase_token_input :firebase_token
+        firebase :example do
+          token_input :firebase_token
         end
         """
       ],
@@ -26,7 +26,7 @@ defmodule AshAuthentication.Strategy.Firebase.Dsl do
           """,
           required: true
         ],
-        firebase_token_input: [
+        token_input: [
           type: :atom,
           doc: """
           The input field to validate users' Firebase token.

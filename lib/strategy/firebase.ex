@@ -3,7 +3,7 @@ defmodule AshAuthentication.Strategy.Firebase do
   AshAuthentication strategy for signing in with Firebase token.
   """
   defstruct name: :firebase,
-            firebase_token_input: nil,
+            token_input: nil,
             register_action_name: nil,
             resource: nil,
             strategy_module: __MODULE__

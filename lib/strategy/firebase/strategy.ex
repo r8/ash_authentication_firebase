@@ -38,7 +38,7 @@ defimpl AshAuthentication.Strategy, for: AshAuthentication.Strategy.Firebase do
     action = Resource.Info.action(strategy.resource, strategy.register_action_name, :create)
 
     with {:ok, firebase_token} <-
-           get_firebase_token_from_params(params, strategy.firebase_token_input),
+           get_firebase_token_from_params(params, strategy.token_input),
          {:ok, _, fields} <- verify_firebase_token(firebase_token),
          user_info <- get_user_info(fields) do
       strategy.resource
@@ -67,10 +67,10 @@ defimpl AshAuthentication.Strategy, for: AshAuthentication.Strategy.Firebase do
     Map.take(fields, ["user_id", "email"])
   end
 
-  defp get_firebase_token_from_params(params, firebase_token_input) do
+  defp get_firebase_token_from_params(params, token_input) do
     cond do
-      Map.has_key?(params, firebase_token_input) -> Map.fetch(params, firebase_token_input)
-      true -> Map.fetch(params, firebase_token_input |> Atom.to_string())
+      Map.has_key?(params, token_input) -> Map.fetch(params, token_input)
+      true -> Map.fetch(params, token_input |> Atom.to_string())
     end
   end
 end
