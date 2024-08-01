@@ -13,13 +13,15 @@ defmodule AshAuthentication.Firebase.MixProject do
       description: description(),
       package: package(),
       docs: docs(),
-      deps: deps()    ]
+      deps: deps()
+    ]
   end
 
   # Run "mix help compile.app" to learn about applications.
   def application do
     [
-      extra_applications: [:logger, :ex_firebase_auth]
+      mod: {AshAuthentication.Firebase, []},
+      extra_applications: [:logger]
     ]
   end
 
@@ -27,7 +29,9 @@ defmodule AshAuthentication.Firebase.MixProject do
   defp deps do
     [
       {:ash_authentication, "~> 3.11"},
-      {:ex_firebase_auth, "~> 0.5.1"},
+      {:joken, ">= 2.4.0"},
+      {:jason, ">= 1.4.0"},
+      {:finch, ">= 0.13.0"}
     ]
   end
 

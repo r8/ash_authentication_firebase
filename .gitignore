@@ -24,3 +24,9 @@ ash_authentication_firebase-*.tar
 
 # Temporary files, for example, from tests.
 /tmp/
+
+# Dev SDK versions
+/.tool-versions
+
+# Ignore the mix lock file
+/mix.lock

@@ -5,6 +5,7 @@ defimpl AshAuthentication.Strategy, for: AshAuthentication.Strategy.Firebase do
   alias Ash.Resource
   alias Ash.Changeset
   alias AshAuthentication.Errors
+  alias AshAuthentication.Firebase.TokenVerifier
 
   import AshAuthentication.Plug.Helpers, only: [store_authentication_result: 2]
 
@@ -26,7 +27,7 @@ defimpl AshAuthentication.Strategy, for: AshAuthentication.Strategy.Firebase do
   def method_for_phase(_, :sign_in), do: :post
 
   def plug(strategy, :sign_in, conn) do
-    params = Map.take(conn.params, ["firebase_token"])
+    params = Map.take(conn.params, [to_string(strategy.token_input)])
 
     result = action(strategy, :sign_in, params, [])
 
@@ -39,8 +40,8 @@ defimpl AshAuthentication.Strategy, for: AshAuthentication.Strategy.Firebase do
 
     with {:ok, firebase_token} <-
            get_firebase_token_from_params(params, strategy.token_input),
-         {:ok, _, fields} <- verify_firebase_token(firebase_token),
-         user_info <- get_user_info(fields) do
+         {:ok, _token, claims} <- verify_firebase_token(firebase_token, strategy.project_id),
+         user_info <- get_user_info(claims) do
       strategy.resource
       |> Changeset.new()
       |> Changeset.set_context(%{
@@ -59,12 +60,15 @@ defimpl AshAuthentication.Strategy, for: AshAuthentication.Strategy.Firebase do
     end
   end
 
-  defp verify_firebase_token(token) do
-    ExFirebaseAuth.Token.verify_token(token)
+  defp verify_firebase_token(token, project_id) do
+    TokenVerifier.verify(token, project_id)
   end
 
-  defp get_user_info(%{fields: fields}) do
-    Map.take(fields, ["user_id", "email"])
+  defp get_user_info(claims) do
+    %{
+      "firebase_user_id" => claims["sub"],
+      "email" => claims["email"]
+    }
   end
 
   defp get_firebase_token_from_params(params, token_input) do

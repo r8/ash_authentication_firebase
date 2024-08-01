@@ -26,6 +26,13 @@ defmodule AshAuthentication.Strategy.Firebase.Dsl do
           """,
           required: true
         ],
+        project_id: [
+          type: :string,
+          doc: """
+          The Firebase project ID to use for token verification.
+          """,
+          required: true
+        ],
         token_input: [
           type: :atom,
           doc: """

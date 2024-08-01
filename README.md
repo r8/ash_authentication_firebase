@@ -19,16 +19,6 @@ def deps do
 end
 ```
 
-## Configuration
-
-The library uses [ExFirebaseAuth](https://github.com/Nickforall/ExFirebaseAuth) under the hood (subject to change in the next versions), so you'll have to configure it.
-
-Add the Firebase auth issuer name for your project to your `config.exs`:
-
-```elixir
-config :ex_firebase_auth, :issuer, "https://securetoken.google.com/project-123abc"
-```
-
 ## Usage
 
 Please consult with official [Ash documentation](https://ash-hq.org/docs/guides/ash_authentication/latest/tutorials/getting-started-with-authentication) on how to create your resource.
@@ -46,7 +36,14 @@ defmodule MyApp.Accounts.User do
     api MyApp.Accounts
 
     strategies do
-      firebase :example do
+      # You can have multiple firebase strategies
+      firebase :firebase_prod do
+        project_id "project-123abc"
+        token_input :firebase_token
+      end
+
+      firebase :firebase_staging do
+        project_id "project-456def"
         token_input :firebase_token
       end
     end
