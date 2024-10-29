@@ -38,12 +38,12 @@ defmodule MyApp.Accounts.User do
     strategies do
       # You can have multiple firebase strategies
       firebase :firebase_main do
-        project_id Application.fetch_env!(:your_app, __MODULE__)[:firebase_project_id]
+        project_id "project-123abc"
         token_input :firebase_token
       end
 
       firebase :firebase_secondary do
-        project_id "project-123abc"
+        project_id "project-456def"
         token_input :firebase_token
       end
     end
