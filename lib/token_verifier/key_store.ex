@@ -76,7 +76,8 @@ defmodule AshAuthentication.Firebase.TokenVerifier.KeyStore do
 
     case Finch.request(request, @finch_name) do
       {:ok, %{status: 200, headers: headers, body: body}} ->
-        with {:ok, keys} <- Jason.decode(body),
+        with {:ok, json_data} <- Jason.decode(body),
+             {:ok, keys} <- convert_to_jose_keys(json_data),
              expires_in <- extract_max_age(headers) do
           {:ok, keys, expires_in}
         end
@@ -87,6 +88,21 @@ defmodule AshAuthentication.Firebase.TokenVerifier.KeyStore do
       {:error, reason} ->
         {:error, reason}
     end
+  end
+
+  defp convert_to_jose_keys(json_data) do
+    keys =
+      json_data
+      |> Enum.map(fn {key, value} ->
+        case JOSE.JWK.from_pem(value) do
+          [] -> {key, nil}
+          jwk -> {key, jwk}
+        end
+      end)
+      |> Enum.filter(fn {_, value} -> not is_nil(value) end)
+      |> Map.new()
+
+    {:ok, keys}
   end
 
   defp extract_max_age(headers) do

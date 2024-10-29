@@ -29,7 +29,7 @@ defmodule AshAuthentication.Firebase.MixProject do
   defp deps do
     [
       {:ash_authentication, "~> 3.11"},
-      {:joken, ">= 2.4.0"},
+      {:jose, ">= 1.10.0"},
       {:jason, ">= 1.4.0"},
       {:finch, ">= 0.13.0"}
     ]
