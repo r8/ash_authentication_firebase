@@ -75,7 +75,7 @@ Using a module:
 defmodule MyApp.Secrets do
   use AshAuthentication.Secret
 
-  def secret_for([:authentication, :strategies, :firebase, :project_id], MyApp.User, _opts) do
+  def secret_for([:authentication, :strategies, :firebase, :project_id], MyApp.Accounts.User, _opts) do
     Application.fetch_env(:my_app, :firebase_project_id)
   end
 end
