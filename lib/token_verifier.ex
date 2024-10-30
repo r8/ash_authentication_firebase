@@ -67,9 +67,10 @@ defmodule AshAuthentication.Firebase.TokenVerifier do
   end
 
   defp verify_expiry(exp) do
-    cond do
-      exp > DateTime.utc_now() |> DateTime.to_unix() -> {:ok, exp}
-      true -> {:expired, exp}
+    if exp > DateTime.utc_now() |> DateTime.to_unix() do
+      {:ok, exp}
+    else
+      {:expired, exp}
     end
   end
 end

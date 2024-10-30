@@ -2,8 +2,8 @@ defmodule AshAuthentication.Strategy.Firebase.Transformer do
   @moduledoc """
   DSL transformer for firebase strategies.
   """
-  alias Spark.{Dsl.Transformer, Error.DslError}
   alias AshAuthentication.Strategy
+  alias Spark.{Dsl.Transformer, Error.DslError}
 
   import AshAuthentication.Utils
   import AshAuthentication.Validations
