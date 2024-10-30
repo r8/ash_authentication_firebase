@@ -3,7 +3,9 @@ defmodule AshAuthentication.Strategy.Firebase.Verifier do
   DSL verifier for firebase strategies.
   """
 
-  def verify(_strategy, _dsl_state) do
-    :ok
+  import AshAuthentication.Validations
+
+  def verify(strategy, _dsl_state) do
+    validate_secret(strategy, :project_id)
   end
 end

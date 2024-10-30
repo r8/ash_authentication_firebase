@@ -38,9 +38,10 @@ defimpl AshAuthentication.Strategy, for: AshAuthentication.Strategy.Firebase do
     api = AshAuthentication.Info.authentication_api!(strategy.resource)
     action = Resource.Info.action(strategy.resource, strategy.register_action_name, :create)
 
-    with {:ok, firebase_token} <-
+    with {:ok, project_id} <- fetch_secret(strategy, :project_id),
+         {:ok, firebase_token} <-
            get_firebase_token_from_params(params, strategy.token_input),
-         {:ok, _token, fields} <- verify_firebase_token(firebase_token, strategy.project_id),
+         {:ok, _token, fields} <- verify_firebase_token(firebase_token, project_id),
          user_info <- get_user_info(fields) do
       strategy.resource
       |> Changeset.new()
@@ -73,6 +74,22 @@ defimpl AshAuthentication.Strategy, for: AshAuthentication.Strategy.Firebase do
       Map.fetch(params, token_input)
     else
       Map.fetch(params, token_input |> Atom.to_string())
+    end
+  end
+
+  defp fetch_secret(strategy, secret_name) do
+    path = [:authentication, :strategies, strategy.name, secret_name]
+
+    with {:ok, {secret_module, secret_opts}} <- Map.fetch(strategy, secret_name),
+         {:ok, secret} when is_binary(secret) and byte_size(secret) > 0 <-
+           secret_module.secret_for(path, strategy.resource, secret_opts) do
+      {:ok, secret}
+    else
+      {:ok, secret} ->
+        {:ok, secret}
+
+      _ ->
+        {:error, Errors.MissingSecret.exception(path: path, resource: strategy.resource)}
     end
   end
 end

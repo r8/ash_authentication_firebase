@@ -2,6 +2,10 @@
 
 ## Unreleased
 
+### Added
+
+- Use AshAuthentication.Secret to set Firebase project id
+
 ### Fixed
 
 - Return an error from fetcher if no valid keys fetched

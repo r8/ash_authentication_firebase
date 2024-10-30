@@ -6,12 +6,16 @@ defmodule AshAuthentication.Strategy.Firebase.Dsl do
   alias Spark.Dsl.Entity
 
   def dsl do
+    secret_type = AshAuthentication.Dsl.secret_type()
+    secret_doc = AshAuthentication.Dsl.secret_doc()
+
     %Entity{
       name: :firebase,
       describe: "Strategy to sign in with Firebase token.",
       examples: [
         """
         firebase :example do
+          project_id "my-firebase-project-id"
           token_input :firebase_token
         end
         """
@@ -22,14 +26,14 @@ defmodule AshAuthentication.Strategy.Firebase.Dsl do
         name: [
           type: :atom,
           doc: """
-          The strategy name.
+          Uniquely identifies the strategy.
           """,
           required: true
         ],
         project_id: [
-          type: :string,
+          type: secret_type,
           doc: """
-          The Firebase project ID to use for token verification.
+          The Firebase project id to use for token verification. #{secret_doc}
           """,
           required: true
         ],
