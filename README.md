@@ -61,7 +61,7 @@ authentication do
   strategies do
     firebase :firebase do
       project_id fn _path, _resource ->
-        Application.fetch_env!(:my_app, :firebase_project_id)
+        Application.fetch_env(:my_app, :firebase_project_id)
       end
       token_input :firebase_token
     end
