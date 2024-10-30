@@ -102,7 +102,11 @@ defmodule AshAuthentication.Firebase.TokenVerifier.KeyStore do
       |> Enum.filter(fn {_, value} -> not is_nil(value) end)
       |> Map.new()
 
-    {:ok, keys}
+    if map_size(keys) > 0 do
+      {:ok, keys}
+    else
+      {:error, :no_valid_keys}
+    end
   end
 
   defp extract_max_age(headers) do
