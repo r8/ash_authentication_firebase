@@ -14,7 +14,7 @@ The package can be installed by adding `ash_authentication_firebase` to your lis
 ```elixir
 def deps do
   [
-    {:ash_authentication_firebase, "~> 0.0.1"}
+    {:ash_authentication_firebase, "~> 0.2.0"}
   ]
 end
 ```

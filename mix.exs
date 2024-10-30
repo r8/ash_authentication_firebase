@@ -1,7 +1,7 @@
 defmodule AshAuthentication.Firebase.MixProject do
   use Mix.Project
 
-  @version "0.0.1"
+  @version "0.2.0"
   @source "https://github.com/r8/ash_authentication_firebase"
 
   def project do
