@@ -37,22 +37,61 @@ defmodule MyApp.Accounts.User do
 
     strategies do
       # You can have multiple firebase strategies
-      firebase :firebase_main do
+      firebase :firebase do
         project_id "project-123abc"
-        token_input :firebase_token
-      end
-
-      firebase :firebase_secondary do
-        project_id "project-456def"
         token_input :firebase_token
       end
     end
   end
-
 ...
 
 end
 ```
+
+## Secrets and Runtime Configuration
+
+To avoid hardcoding your Firebase project id in your source code, you can use the `AshAuthentication.Secret` behaviour. This allows you to provide the project id through runtime configuration using either an anonymous function or a module.
+
+### Examples:
+
+Using an anonymous function:
+
+```elixir
+authentication do
+  strategies do
+    firebase :firebase do
+      project_id fn _path, _resource ->
+        Application.fetch_env!(:my_app, :firebase_project_id)
+      end
+      token_input :firebase_token
+    end
+  end
+end
+```
+
+Using a module:
+
+```elixir
+defmodule MyApp.Secrets do
+  use AshAuthentication.Secret
+
+  def secret_for([:authentication, :strategies, :firebase, :project_id], MyApp.User, _opts) do
+    Application.fetch_env(:my_app, :firebase_project_id)
+  end
+end
+
+# And in your resource:
+
+authentication do
+  strategies do
+    firebase :firebase do
+      project_id MyApp.Secrets
+      token_input :firebase_token
+    end
+  end
+end
+```
+
 ## Acknowledgements
 
 Inspired by [ExFirebaseAuth](https://github.com/Nickforall/ExFirebaseAuth).
