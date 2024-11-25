@@ -30,8 +30,8 @@ defmodule AshAuthentication.Firebase.MixProject do
     [
       {:ash_authentication, "~> 3.11"},
       {:jose, ">= 1.10.0"},
-      {:jason, ">= 1.4.0"},
-      {:finch, ">= 0.13.0"},
+      {:jason, ">= 1.2.0"},
+      {:finch, ">= 0.12.0"},
       {:ex_doc, ">= 0.0.0", only: :dev, runtime: false},
       {:credo, "~> 1.7", only: [:dev, :test], runtime: false}
     ]
