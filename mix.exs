@@ -28,7 +28,7 @@ defmodule AshAuthentication.Firebase.MixProject do
   # Run "mix help deps" to learn about dependencies.
   defp deps do
     [
-      {:ash_authentication, "~> 3.11"},
+      {:ash_authentication, "~> 4.0"},
       {:jose, ">= 1.10.0"},
       {:jason, ">= 1.2.0"},
       {:finch, ">= 0.12.0"},

@@ -7,6 +7,10 @@ Firebase token authentication strategy for [AshAuthentication](https://github.co
 
 > 🛠 In development. Use at your own risk.
 
+## Requirements
+
+- [AshAuthentication](https://github.com/team-alembic/ash_authentication) ~> 4.0
+
 ## Installation
 
 The package can be installed by adding `ash_authentication_firebase` to your list of dependencies in mix.exs:
@@ -21,7 +25,7 @@ end
 
 ## Usage
 
-Please consult with official [Ash documentation](https://ash-hq.org/docs/guides/ash_authentication/latest/tutorials/getting-started-with-authentication) on how to create your resource.
+Please consult with official [Ash documentation](https://hexdocs.pm/ash_authentication/get-started.html) on how to configure your resource.
 
 Add `AshAuthentication.Strategy.Firebase` to your resource `extensions` list and `:firebase` strategy to the `authentication` section:
 
@@ -33,7 +37,7 @@ defmodule MyApp.Accounts.User do
 ...
 
   authentication do
-    api MyApp.Accounts
+    domain MyApp.Accounts
 
     strategies do
       # You can have multiple firebase strategies
@@ -75,7 +79,7 @@ Using a module:
 defmodule MyApp.Secrets do
   use AshAuthentication.Secret
 
-  def secret_for([:authentication, :strategies, :firebase, :project_id], MyApp.Accounts.User, _opts) do
+  def secret_for([:authentication, :strategies, :firebase, :project_id], MyApp.Accounts.User, _opts, _context) do
     Application.fetch_env(:my_app, :firebase_project_id)
   end
 end

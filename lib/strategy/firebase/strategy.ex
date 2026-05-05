@@ -13,6 +13,8 @@ defimpl AshAuthentication.Strategy, for: AshAuthentication.Strategy.Firebase do
 
   def name(strategy), do: strategy.name
 
+  def tokens_required?(_), do: false
+
   def phases(_), do: [:sign_in]
   def actions(_), do: [:sign_in]
 
@@ -35,7 +37,6 @@ defimpl AshAuthentication.Strategy, for: AshAuthentication.Strategy.Firebase do
   end
 
   def action(strategy, :sign_in, params, options) do
-    api = AshAuthentication.Info.authentication_api!(strategy.resource)
     action = Resource.Info.action(strategy.resource, strategy.register_action_name, :create)
 
     with {:ok, project_id} <- fetch_secret(strategy, :project_id),
@@ -54,7 +55,7 @@ defimpl AshAuthentication.Strategy, for: AshAuthentication.Strategy.Firebase do
         upsert?: true,
         upsert_identity: action.upsert_identity
       )
-      |> api.create(options)
+      |> Ash.create(options)
     else
       _ ->
         {:error, Errors.InvalidToken.exception(type: :sign_in)}
@@ -82,7 +83,7 @@ defimpl AshAuthentication.Strategy, for: AshAuthentication.Strategy.Firebase do
 
     with {:ok, {secret_module, secret_opts}} <- Map.fetch(strategy, secret_name),
          {:ok, secret} when is_binary(secret) and byte_size(secret) > 0 <-
-           secret_module.secret_for(path, strategy.resource, secret_opts) do
+           secret_module.secret_for(path, strategy.resource, secret_opts, %{}) do
       {:ok, secret}
     else
       {:ok, secret} ->

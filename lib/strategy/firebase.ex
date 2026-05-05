@@ -2,7 +2,8 @@ defmodule AshAuthentication.Strategy.Firebase do
   @moduledoc """
   AshAuthentication strategy for signing in with Firebase token.
   """
-  defstruct name: :firebase,
+  defstruct __spark_metadata__: nil,
+            name: :firebase,
             project_id: nil,
             token_input: nil,
             register_action_name: nil,

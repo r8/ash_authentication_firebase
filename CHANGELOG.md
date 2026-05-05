@@ -1,5 +1,11 @@
 # Changelog
 
+## [Unreleased]
+
+### Changed
+
+- Upgraded to AshAuthentication 4
+
 ## [0.2.0] - 2024-10-30
 
 ### Added
