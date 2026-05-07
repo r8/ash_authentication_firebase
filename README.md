@@ -1,5 +1,6 @@
 # AshAuthentication.Firebase
 
+[![Elixir CI](https://github.com/r8/ash_authentication_firebase/actions/workflows/elixir.yml/badge.svg)](https://github.com/r8/ash_authentication_firebase/actions/workflows/elixir.yml)
 [![Hex.pm](https://img.shields.io/hexpm/v/ash_authentication_firebase.svg?style=flat-square)](https://hex.pm/packages/ash_authentication_firebase)
 [![Hex.pm](https://img.shields.io/hexpm/dt/ash_authentication_firebase.svg?style=flat-square)](https://hex.pm/packages/ash_authentication_firebase)
 
