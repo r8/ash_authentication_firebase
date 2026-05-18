@@ -8,27 +8,29 @@ defmodule AshAuthentication.Firebase.TokenVerifier do
   alias AshAuthentication.Firebase.TokenVerifier.KeyStore
 
   @issuer_prefix "https://securetoken.google.com/"
+  # Firebase Id tokens are always signed with RS256 algorithm
+  @algorithm "RS256"
 
   def verify(token, project_id) when is_binary(token) and is_binary(project_id) do
     issuer = @issuer_prefix <> project_id
 
-    with {:jwtheader, %{fields: %{"kid" => kid}}} <- peek_token_kid(token),
+    with {:jwt_header, %{fields: %{"kid" => kid, "alg" => @algorithm}}} <- peek_token_kid(token),
          # read key from store
          {:ok, keys} = KeyStore.get_keys(),
          {:ok, %JOSE.JWK{} = key} <- get_public_key(keys, kid),
          # check if verify returns true and issuer matches
          {:verify, {true, %{fields: %{"iss" => ^issuer, "sub" => sub, "exp" => exp}} = data, _}} <-
-           {:verify, JOSE.JWT.verify(key, token)},
+           {:verify, JOSE.JWT.verify_strict(key, [@algorithm], token)},
          # Verify exp date
          {:verify, {:ok, _}} <- {:verify, verify_expiry(exp)},
          %{fields: fields} <- data do
       {:ok, sub, fields}
     else
-      :invalidjwt ->
+      :invalid_jwt ->
         {:error, "Invalid JWT"}
 
-      {:jwtheader, _} ->
-        {:error, "Invalid JWT header, `kid` missing"}
+      {:jwt_header, _} ->
+        {:error, "Invalid JWT header, `kid` or `alg` missing/incorrect"}
 
       {:key, _} ->
         {:error, "Public key retrieved from google was not found or could not be parsed"}
@@ -61,9 +63,9 @@ defmodule AshAuthentication.Firebase.TokenVerifier do
   end
 
   defp peek_token_kid(token_string) do
-    {:jwtheader, JOSE.JWT.peek_protected(token_string)}
+    {:jwt_header, JOSE.JWT.peek_protected(token_string)}
   rescue
-    _ -> :invalidjwt
+    _ -> :invalid_jwt
   end
 
   defp verify_expiry(exp) do
