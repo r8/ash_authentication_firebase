@@ -2,8 +2,8 @@ defimpl AshAuthentication.Strategy, for: AshAuthentication.Strategy.Firebase do
   @moduledoc """
   Authentication protocol implementation for firebase strategies.
   """
-  alias Ash.Resource
   alias Ash.Changeset
+  alias Ash.Resource
   alias AshAuthentication.Errors
   alias AshAuthentication.Firebase.TokenVerifier
 
