@@ -66,10 +66,9 @@ defimpl AshAuthentication.Strategy, for: AshAuthentication.Strategy.Firebase do
   end
 
   defp get_firebase_token_from_params(params, token_input) do
-    if Map.has_key?(params, token_input) do
-      Map.fetch(params, token_input)
-    else
-      Map.fetch(params, token_input |> Atom.to_string())
+    case Map.get(params, token_input) || Map.get(params, Atom.to_string(token_input)) do
+      nil -> :error
+      token -> {:ok, token}
     end
   end
 
