@@ -4,73 +4,75 @@ defmodule AshAuthentication.Firebase.TokenVerifier do
   Implements all security checks as per Firebase Auth documentation.
   """
 
-  require Logger
   alias AshAuthentication.Firebase.TokenVerifier.KeyStore
 
   @issuer_prefix "https://securetoken.google.com/"
+  # Firebase Id tokens are always signed with RS256 algorithm
+  @algorithm "RS256"
 
-  def verify(token, project_id) when is_binary(token) and is_binary(project_id) do
-    issuer = @issuer_prefix <> project_id
+  @type claims :: %{optional(String.t()) => term()}
+  @type error_reason ::
+          :invalid_token
+          | :invalid_project_id
+          | :invalid_header
+          | :key_not_found
+          | :invalid_signature
+          | :malformed_payload
+          | :invalid_issuer
+          | :invalid_audience
+          | :expired
+          | :invalid_iat
+          | :invalid_auth_time
 
-    with {:jwtheader, %{fields: %{"kid" => kid}}} <- peek_token_kid(token),
-         # read key from store
-         {:ok, keys} = KeyStore.get_keys(),
-         {:ok, %JOSE.JWK{} = key} <- get_public_key(keys, kid),
-         # check if verify returns true and issuer matches
-         {:verify, {true, %{fields: %{"iss" => ^issuer, "sub" => sub, "exp" => exp}} = data, _}} <-
-           {:verify, JOSE.JWT.verify(key, token)},
-         # Verify exp date
-         {:verify, {:ok, _}} <- {:verify, verify_expiry(exp)},
-         %{fields: fields} <- data do
-      {:ok, sub, fields}
-    else
-      :invalidjwt ->
-        {:error, "Invalid JWT"}
-
-      {:jwtheader, _} ->
-        {:error, "Invalid JWT header, `kid` missing"}
-
-      {:key, _} ->
-        {:error, "Public key retrieved from google was not found or could not be parsed"}
-
-      {:verify, {false, _, _}} ->
-        {:error, "Invalid signature"}
-
-      {:verify, {true, _, _}} ->
-        {:error, "Signed by invalid issuer"}
-
-      {:verify, {:expired, _}} ->
-        {:error, "Expired JWT"}
-
-      {:verify, _} ->
-        {:error, "None of public keys matched auth token's key ids"}
-    end
-  end
+  @spec verify(String.t() | nil, String.t() | nil) ::
+          {:ok, sub :: String.t(), claims()} | {:error, error_reason()}
 
   def verify(nil, _project_id), do: {:error, :invalid_token}
   def verify(_token, nil), do: {:error, :invalid_project_id}
 
+  def verify(token, project_id) when is_binary(token) and is_binary(project_id) do
+    issuer = @issuer_prefix <> project_id
+    now = System.os_time(:second)
+
+    with {:jwt_header, %{fields: %{"kid" => kid, "alg" => @algorithm}}} <- peek_token_kid(token),
+         # read key from store
+         {:ok, keys} <- KeyStore.get_keys(),
+         {:ok, %JOSE.JWK{} = key} <- get_public_key(keys, kid),
+         # check if verify returns true
+         {:verify, {true, %{fields: fields}, _}} <-
+           {:verify, JOSE.JWT.verify_strict(key, [@algorithm], token)},
+         {:validate_iss, true} <- {:validate_iss, fields["iss"] == issuer},
+         {:validate_aud, true} <- {:validate_aud, fields["aud"] == project_id},
+         {:validate_exp, true} <-
+           {:validate_exp, is_integer(fields["exp"]) and fields["exp"] > now},
+         {:validate_iat, true} <-
+           {:validate_iat, is_integer(fields["iat"]) and fields["iat"] <= now},
+         {:validate_auth, true} <-
+           {:validate_auth, is_integer(fields["auth_time"]) and fields["auth_time"] <= now} do
+      {:ok, fields["sub"], fields}
+    else
+      {:jwt_header, _} -> {:error, :invalid_header}
+      {:verify, {false, _, _}} -> {:error, :invalid_signature}
+      {:verify, _} -> {:error, :malformed_payload}
+      {:validate_iss, _} -> {:error, :invalid_issuer}
+      {:validate_aud, _} -> {:error, :invalid_audience}
+      {:validate_exp, _} -> {:error, :expired}
+      {:validate_iat, _} -> {:error, :invalid_iat}
+      {:validate_auth, _} -> {:error, :invalid_auth_time}
+      error -> error
+    end
+  end
+
   defp get_public_key(keys, key_id) do
     case Map.get(keys, key_id) do
-      nil ->
-        {:error, :key_not_found}
-
-      cert_string ->
-        {:ok, cert_string}
+      nil -> {:error, :key_not_found}
+      jwk -> {:ok, jwk}
     end
   end
 
   defp peek_token_kid(token_string) do
-    {:jwtheader, JOSE.JWT.peek_protected(token_string)}
+    {:jwt_header, JOSE.JWT.peek_protected(token_string)}
   rescue
-    _ -> :invalidjwt
-  end
-
-  defp verify_expiry(exp) do
-    if exp > DateTime.utc_now() |> DateTime.to_unix() do
-      {:ok, exp}
-    else
-      {:expired, exp}
-    end
+    _ -> {:jwt_header, :invalid}
   end
 end
