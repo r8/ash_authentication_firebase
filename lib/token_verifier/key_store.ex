@@ -9,6 +9,9 @@ defmodule AshAuthentication.Firebase.TokenVerifier.KeyStore do
 
   @google_keys_url "https://www.googleapis.com/robot/v1/metadata/x509/securetoken@system.gserviceaccount.com"
   @default_refresh_interval :timer.minutes(30)
+  @initial_retry :timer.seconds(1)
+  @max_retry :timer.minutes(5)
+  @max_retry_attempt 20
   @name __MODULE__
   @finch_name AshAuthentication.Firebase.Finch
 
@@ -36,7 +39,8 @@ defmodule AshAuthentication.Firebase.TokenVerifier.KeyStore do
     state = %{
       keys: %{},
       last_refresh: nil,
-      refresh_interval: refresh_interval
+      refresh_interval: refresh_interval,
+      retry_attempt: 0
     }
 
     {:ok, state, {:continue, :fetch_keys}}
@@ -47,16 +51,18 @@ defmodule AshAuthentication.Firebase.TokenVerifier.KeyStore do
     case fetch_google_keys() do
       {:ok, keys, expires_in} ->
         schedule_refresh(expires_in)
-        {:noreply, %{state | keys: keys, last_refresh: DateTime.utc_now()}}
+        {:noreply, %{state | keys: keys, last_refresh: DateTime.utc_now(), retry_attempt: 0}}
 
       {:error, reason} ->
-        Logger.error("Failed to fetch Firebase public keys: #{inspect(reason)}")
-        # Fast-retry backoff: if cache is empty, retry quickly
-        retry_interval =
-          if map_size(state.keys) == 0, do: :timer.seconds(5), else: state.refresh_interval
+        delay = backoff_delay(state.retry_attempt)
 
-        schedule_refresh(retry_interval)
-        {:noreply, state}
+        Logger.error(
+          "Failed to fetch Firebase public keys: #{inspect(reason)}; " <>
+            "retrying in #{delay}ms (attempt #{state.retry_attempt + 1})"
+        )
+
+        schedule_refresh(delay)
+        {:noreply, %{state | retry_attempt: state.retry_attempt + 1}}
     end
   end
 
@@ -144,5 +150,11 @@ defmodule AshAuthentication.Firebase.TokenVerifier.KeyStore do
 
   defp schedule_refresh(interval) do
     Process.send_after(self(), :refresh_keys, interval)
+  end
+
+  defp backoff_delay(attempt) do
+    capped_attempt = min(attempt, @max_retry_attempt)
+    capped = min(@initial_retry * Bitwise.bsl(1, capped_attempt), @max_retry)
+    :rand.uniform(capped)
   end
 end
