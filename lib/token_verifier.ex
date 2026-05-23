@@ -21,12 +21,16 @@ defmodule AshAuthentication.Firebase.TokenVerifier do
           | :invalid_issuer
           | :invalid_audience
           | :expired
+          | :invalid_sub
           | :invalid_iat
           | :invalid_auth_time
 
   @spec verify(String.t() | nil, String.t() | nil) ::
           {:ok, sub :: String.t(), claims()} | {:error, error_reason()}
 
+  @doc """
+  Verifies a Firebase ID token against the provided project ID.
+  """
   def verify(nil, _project_id), do: {:error, :invalid_token}
   def verify(_token, nil), do: {:error, :invalid_project_id}
 
@@ -43,6 +47,8 @@ defmodule AshAuthentication.Firebase.TokenVerifier do
            {:verify, JOSE.JWT.verify_strict(key, [@algorithm], token)},
          {:validate_iss, true} <- {:validate_iss, fields["iss"] == issuer},
          {:validate_aud, true} <- {:validate_aud, fields["aud"] == project_id},
+         {:validate_sub, true} <-
+           {:validate_sub, is_binary(fields["sub"]) and byte_size(fields["sub"]) > 0},
          {:validate_exp, true} <-
            {:validate_exp, is_integer(fields["exp"]) and fields["exp"] > now},
          {:validate_iat, true} <-
@@ -56,6 +62,7 @@ defmodule AshAuthentication.Firebase.TokenVerifier do
       {:verify, _} -> {:error, :malformed_payload}
       {:validate_iss, _} -> {:error, :invalid_issuer}
       {:validate_aud, _} -> {:error, :invalid_audience}
+      {:validate_sub, _} -> {:error, :invalid_sub}
       {:validate_exp, _} -> {:error, :expired}
       {:validate_iat, _} -> {:error, :invalid_iat}
       {:validate_auth, _} -> {:error, :invalid_auth_time}
