@@ -1,5 +1,11 @@
 # Changelog
 
+## [Unreleased]
+
+### Fixed
+
+- Added missing verifications for Firebase keys
+
 ## [1.0.0] - 2026-05-05
 
 ### Breaking Changes
