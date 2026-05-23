@@ -4,7 +4,6 @@ defmodule AshAuthentication.Firebase.TokenVerifier do
   Implements all security checks as per Firebase Auth documentation.
   """
 
-  require Logger
   alias AshAuthentication.Firebase.TokenVerifier.KeyStore
 
   @issuer_prefix "https://securetoken.google.com/"
