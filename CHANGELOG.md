@@ -4,7 +4,8 @@
 
 ### Fixed
 
-- Added missing verifications for Firebase keys
+- Add missing verifications for Firebase keys
+- Pass all token fields to Ash Resource
 
 ## [1.0.0] - 2026-05-05
 

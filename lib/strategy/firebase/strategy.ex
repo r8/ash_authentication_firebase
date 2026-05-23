@@ -42,8 +42,7 @@ defimpl AshAuthentication.Strategy, for: AshAuthentication.Strategy.Firebase do
     with {:ok, project_id} <- fetch_secret(strategy, :project_id),
          {:ok, firebase_token} <-
            get_firebase_token_from_params(params, strategy.token_input),
-         {:ok, _token, fields} <- verify_firebase_token(firebase_token, project_id),
-         user_info <- get_user_info(fields) do
+         {:ok, _token, fields} <- verify_firebase_token(firebase_token, project_id) do
       strategy.resource
       |> Changeset.new()
       |> Changeset.set_context(%{
@@ -51,7 +50,7 @@ defimpl AshAuthentication.Strategy, for: AshAuthentication.Strategy.Firebase do
           ash_authentication?: true
         }
       })
-      |> Changeset.for_create(strategy.register_action_name, %{user_info: user_info},
+      |> Changeset.for_create(strategy.register_action_name, %{user_info: fields},
         upsert?: true,
         upsert_identity: action.upsert_identity
       )
@@ -64,10 +63,6 @@ defimpl AshAuthentication.Strategy, for: AshAuthentication.Strategy.Firebase do
 
   defp verify_firebase_token(token, project_id) do
     TokenVerifier.verify(token, project_id)
-  end
-
-  defp get_user_info(fields) do
-    Map.take(fields, ["user_id", "email"])
   end
 
   defp get_firebase_token_from_params(params, token_input) do
