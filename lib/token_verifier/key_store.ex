@@ -51,7 +51,11 @@ defmodule AshAuthentication.Firebase.TokenVerifier.KeyStore do
 
       {:error, reason} ->
         Logger.error("Failed to fetch Firebase public keys: #{inspect(reason)}")
-        schedule_refresh(state.refresh_interval)
+        # Fast-retry backoff: if cache is empty, retry quickly
+        retry_interval =
+          if map_size(state.keys) == 0, do: :timer.seconds(5), else: state.refresh_interval
+
+        schedule_refresh(retry_interval)
         {:noreply, state}
     end
   end
