@@ -4,6 +4,7 @@ defmodule AshAuthentication.Firebase.TokenVerifier.KeyStore do
   Fetches and caches JWKs (JSON Web Keys) from Google's servers.
   """
   use GenServer
+  @behaviour AshAuthentication.Firebase.TokenVerifier.KeyStoreBehaviour
   require Logger
 
   @google_keys_url "https://www.googleapis.com/robot/v1/metadata/x509/securetoken@system.gserviceaccount.com"
@@ -17,6 +18,7 @@ defmodule AshAuthentication.Firebase.TokenVerifier.KeyStore do
     GenServer.start_link(__MODULE__, opts, name: @name)
   end
 
+  @impl AshAuthentication.Firebase.TokenVerifier.KeyStoreBehaviour
   def get_keys do
     GenServer.call(@name, :get_keys)
   end

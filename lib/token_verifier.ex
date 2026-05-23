@@ -4,11 +4,7 @@ defmodule AshAuthentication.Firebase.TokenVerifier do
   Implements all security checks as per Firebase Auth documentation.
   """
 
-  alias AshAuthentication.Firebase.TokenVerifier.KeyStore
-
   @issuer_prefix "https://securetoken.google.com/"
-  # Firebase Id tokens are always signed with RS256 algorithm
-  @algorithm "RS256"
 
   @type claims :: %{optional(String.t()) => term()}
   @type error_reason ::
@@ -38,13 +34,14 @@ defmodule AshAuthentication.Firebase.TokenVerifier do
     issuer = @issuer_prefix <> project_id
     now = System.os_time(:second)
 
-    with {:jwt_header, %{fields: %{"kid" => kid, "alg" => @algorithm}}} <- peek_token_kid(token),
+    with {:jwt_header, %JOSE.JWS{alg: {_, :RS256}, fields: %{"kid" => kid}}} <-
+           peek_token_kid(token),
          # read key from store
-         {:ok, keys} <- KeyStore.get_keys(),
+         {:ok, keys} <- key_store().get_keys(),
          {:ok, %JOSE.JWK{} = key} <- get_public_key(keys, kid),
          # check if verify returns true
          {:verify, {true, %{fields: fields}, _}} <-
-           {:verify, JOSE.JWT.verify_strict(key, [@algorithm], token)},
+           {:verify, JOSE.JWT.verify_strict(key, ["RS256"], token)},
          {:validate_iss, true} <- {:validate_iss, fields["iss"] == issuer},
          {:validate_aud, true} <- {:validate_aud, fields["aud"] == project_id},
          {:validate_sub, true} <-
@@ -81,5 +78,13 @@ defmodule AshAuthentication.Firebase.TokenVerifier do
     {:jwt_header, JOSE.JWT.peek_protected(token_string)}
   rescue
     _ -> {:jwt_header, :invalid}
+  end
+
+  defp key_store do
+    Application.get_env(
+      :ash_authentication_firebase,
+      :key_store,
+      AshAuthentication.Firebase.TokenVerifier.KeyStore
+    )
   end
 end
