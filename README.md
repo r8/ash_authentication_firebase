@@ -24,20 +24,46 @@ end
 
 ## Usage
 
-Please consult official [Ash documentation](https://hexdocs.pm/ash_authentication/get-started.html) on how to configure your resource.
+Please consult the official [AshAuthentication docs](https://hexdocs.pm/ash_authentication/get-started.html) for how to scaffold a resource. Below is a complete minimal example showing the parts this strategy requires.
 
-Add `AshAuthentication.Strategy.Firebase` to your resource `extensions` list and `:firebase` strategy to the `authentication` section:
+Add `AshAuthentication.Strategy.Firebase` to your resource `extensions`, declare an `identity` keyed on the Firebase user id, and define a `create` action with `upsert?: true` / `upsert_identity:` so repeat sign-ins update the existing user. The strategy validates this shape at compile time and raises a `Spark.Error.DslError` if anything is missing.
 
 ```elixir
 defmodule MyApp.Accounts.User do
   use Ash.Resource,
+    domain: MyApp.Accounts,
+    data_layer: AshPostgres.DataLayer,
     extensions: [AshAuthentication, AshAuthentication.Strategy.Firebase]
 
-...
+  attributes do
+    uuid_primary_key :id
+    attribute :uid, :string, allow_nil?: false, public?: true
+    attribute :email, :string, public?: true
+  end
+
+  identities do
+    identity :unique_uid, [:uid]
+  end
+
+  actions do
+    defaults [:read]
+
+    create :register_with_firebase do
+      argument :user_info, :map, allow_nil?: false
+      upsert? true
+      upsert_identity :unique_uid
+
+      change fn changeset, _ ->
+        info = Ash.Changeset.get_argument(changeset, :user_info)
+
+        changeset
+        |> Ash.Changeset.change_attribute(:uid, info["uid"])
+        |> Ash.Changeset.change_attribute(:email, info["email"])
+      end
+    end
+  end
 
   authentication do
-    domain MyApp.Accounts
-
     strategies do
       # Multiple firebase strategies with different project_ids are supported.
       firebase :firebase do
@@ -46,8 +72,36 @@ defmodule MyApp.Accounts.User do
       end
     end
   end
-...
+end
+```
 
+### Sign-in only (no auto-registration)
+
+Set `registration_enabled?(false)` and replace the `create` action with a `read` action — useful when users must be provisioned out-of-band before they can sign in.
+
+```elixir
+actions do
+  defaults [:read]
+
+  read :sign_in_with_firebase do
+    argument :user_info, :map, allow_nil?: false
+    get? true
+
+    prepare fn query, _ ->
+      uid = Ash.Query.get_argument(query, :user_info)["uid"]
+      Ash.Query.filter(query, uid == ^uid)
+    end
+  end
+end
+
+authentication do
+  strategies do
+    firebase :firebase do
+      project_id "project-123abc"
+      token_input :firebase_token
+      registration_enabled? false
+    end
+  end
 end
 ```
 

@@ -6,6 +6,7 @@
 
 - Dialyzer to CI alongside `mix test`, `mix credo --strict`, and `mix format --check-formatted`
 - README "Security model" section enumerating what's verified vs. out of scope (notably token revocation)
+- README now includes a complete minimal resource example (identity, `create` action with `upsert?`/`upsert_identity`) and a sign-in-only variant, so users can copy-paste a configuration that passes the strategy's compile-time validation
 - DSL options: `registration_enabled?` (default `true`) for authenticating only pre-provisioned users, plus `sign_in_action_name` and `register_action_name` to customize the relevant actions
 - DSL option `require_email_verified?` (default `true`) rejecting tokens without a `true` `email_verified` claim
 - Structured errors `Errors.EmailNotVerified` and `Errors.InvalidToken` (with a `:reason` field)
