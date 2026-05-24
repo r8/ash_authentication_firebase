@@ -14,24 +14,34 @@ permissions:
 
 jobs:
   build:
-    name: mix test and mix credo and mix format --check-formatted
+    name: "build (Elixir ${{ matrix.elixir }} / OTP ${{ matrix.otp }})"
     runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          # Floor: matches the declared `elixir: ~> 1.15` constraint.
+          - elixir: "1.15.8"
+            otp: "26.2.5"
+          # Latest stable.
+          - elixir: "1.19.5"
+            otp: "28.4.2"
 
     steps:
       - uses: actions/checkout@v6
       - name: Set up Elixir
         uses: erlef/setup-beam@v1.24.0
         with:
-          elixir-version: "1.19.5"
-          otp-version: "28.4.2"
+          elixir-version: ${{ matrix.elixir }}
+          otp-version: ${{ matrix.otp }}
       - name: Restore dependencies cache
         uses: actions/cache@v5
         with:
           path: ./deps
           # mix.lock is gitignored for this library, so we key on mix.exs
           # instead — the cache busts intentionally when declared deps change.
-          key: ${{ runner.os }}-mix-${{ hashFiles('mix.exs') }}
-          restore-keys: ${{ runner.os }}-mix-
+          key: ${{ runner.os }}-mix-${{ matrix.elixir }}-${{ matrix.otp }}-${{ hashFiles('mix.exs') }}
+          restore-keys: ${{ runner.os }}-mix-${{ matrix.elixir }}-${{ matrix.otp }}-
       - name: Install dependencies
         run: mix deps.get
       - name: Run tests
@@ -42,8 +52,16 @@ jobs:
         run: mix format --check-formatted
 
   dialyzer:
-    name: mix dialyzer
+    name: "dialyzer (Elixir ${{ matrix.elixir }} / OTP ${{ matrix.otp }})"
     runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - elixir: "1.15.8"
+            otp: "26.2.5"
+          - elixir: "1.19.5"
+            otp: "28.4.2"
 
     steps:
       - uses: actions/checkout@v6
@@ -51,16 +69,14 @@ jobs:
         id: beam
         uses: erlef/setup-beam@v1.24.0
         with:
-          elixir-version: "1.19.5"
-          otp-version: "28.4.2"
+          elixir-version: ${{ matrix.elixir }}
+          otp-version: ${{ matrix.otp }}
       - name: Restore dependencies cache
         uses: actions/cache@v5
         with:
           path: ./deps
-          # mix.lock is gitignored for this library, so we key on mix.exs
-          # instead — the cache busts intentionally when declared deps change.
-          key: ${{ runner.os }}-mix-${{ hashFiles('mix.exs') }}
-          restore-keys: ${{ runner.os }}-mix-
+          key: ${{ runner.os }}-mix-${{ matrix.elixir }}-${{ matrix.otp }}-${{ hashFiles('mix.exs') }}
+          restore-keys: ${{ runner.os }}-mix-${{ matrix.elixir }}-${{ matrix.otp }}-
       - name: Restore Dialyzer PLT cache
         uses: actions/cache@v5
         with:
