@@ -63,6 +63,8 @@ defmodule AshAuthentication.Firebase.TokenVerifier.KeyStore do
     GenServer.call(@name, :refresh_now, @request_timeout + :timer.seconds(2))
   catch
     :exit, {:timeout, _} -> {:error, :timeout}
+    :exit, {:noproc, _} -> {:error, :not_started}
+    :exit, reason -> {:error, {:key_store_exit, reason}}
   end
 
   # Server Callbacks

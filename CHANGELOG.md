@@ -29,6 +29,7 @@
 - Added missing key verifications and pass all token fields to the Ash resource
 - `KeyStore` now honors the `:refresh_interval` start option as the fallback when Google's response lacks a parseable `Cache-Control: max-age` header (previously the option was silently ignored)
 - `do_sign_in/3` no longer crashes with `CaseClauseError` if `Ash.read/2` ever returns a non-exception `{:error, term}` — such errors are wrapped in `AuthenticationFailed` like other failures
+- `KeyStore.refresh_now/0` now catches all `:exit` reasons (`:noproc`, `:killed`, etc.), not just `:timeout`, returning `{:error, :not_started}` or `{:error, {:key_store_exit, reason}}` instead of crashing the caller on the token-verify hot path
 - `KeyStore` no longer crashes when Google's JWKS response contains a non-binary, empty, or non-PEM value — the bad entry is skipped and the remaining valid keys are loaded
 - Invalid `:clock_skew_leeway_seconds` config (non-integer, negative, or > 300) is logged and replaced with the 60s default instead of being used as-is
 

@@ -217,4 +217,12 @@ defmodule AshAuthentication.Firebase.TokenVerifier.KeyStoreIntegrationTest do
       _ = pid
     end
   end
+
+  describe "refresh_now/0 when GenServer is not running" do
+    test "returns {:error, :not_started} instead of crashing" do
+      # No start_keystore here — the bundled KeyStore is not supervised in
+      # the test env (mock key_store) and we haven't started it manually.
+      assert {:error, :not_started} = KeyStore.refresh_now()
+    end
+  end
 end
