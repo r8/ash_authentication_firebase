@@ -230,6 +230,56 @@ defmodule AshAuthentication.Firebase.TokenVerifierTest do
     end
   end
 
+  describe "clock skew leeway" do
+    setup do
+      previous = Application.get_env(:ash_authentication_firebase, :clock_skew_leeway_seconds)
+
+      on_exit(fn ->
+        case previous do
+          nil -> Application.delete_env(:ash_authentication_firebase, :clock_skew_leeway_seconds)
+          v -> Application.put_env(:ash_authentication_firebase, :clock_skew_leeway_seconds, v)
+        end
+      end)
+
+      :ok
+    end
+
+    test "accepts a token whose iat is slightly in the future within the default leeway",
+         %{private_jwk: jwk} do
+      now = System.os_time(:second)
+
+      token =
+        valid_claims(%{"iat" => now + 30})
+        |> sign(%{"alg" => "RS256", "kid" => @kid}, jwk)
+
+      assert {:ok, "user-123", _claims} = TokenVerifier.verify(token, @project_id)
+    end
+
+    test "rejects the same token when leeway is configured to zero",
+         %{private_jwk: jwk} do
+      Application.put_env(:ash_authentication_firebase, :clock_skew_leeway_seconds, 0)
+      now = System.os_time(:second)
+
+      token =
+        valid_claims(%{"iat" => now + 30})
+        |> sign(%{"alg" => "RS256", "kid" => @kid}, jwk)
+
+      assert {:error, %InvalidToken{reason: :invalid_iat}} =
+               TokenVerifier.verify(token, @project_id)
+    end
+
+    test "accepts a token that just expired within the default leeway",
+         %{private_jwk: jwk} do
+      now = System.os_time(:second)
+
+      token =
+        valid_claims(%{"exp" => now - 30})
+        |> sign(%{"alg" => "RS256", "kid" => @kid}, jwk)
+
+      assert {:ok, "user-123", _claims} = TokenVerifier.verify(token, @project_id)
+    end
+  end
+
   describe "key store not initialized" do
     test "refreshes and recovers when get_keys returns :not_initialized first",
          %{private_jwk: jwk, public_jwk: public_jwk} do

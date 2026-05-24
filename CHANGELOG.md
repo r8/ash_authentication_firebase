@@ -15,6 +15,7 @@
 - Telemetry events: `[:ash_authentication_firebase, :key_store, :fetched | :fetch_failed]` and `[:ash_authentication_firebase, :strategy, :token_rejected]`
 - `uid` is now included in the user info map passed to the Ash action
 - `token_input` parameter accepts either atom or string keys
+- Configurable clock-skew leeway via `config :ash_authentication_firebase, clock_skew_leeway_seconds: <n>` (default 60s), applied to `exp` / `iat` / `auth_time` checks
 
 ### Changed
 

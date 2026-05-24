@@ -2,6 +2,14 @@ defmodule AshAuthentication.Firebase.TokenVerifier do
   @moduledoc """
   Verifies Firebase ID tokens using Google's public keys.
   Implements all security checks as per Firebase Auth documentation.
+
+  ## Clock skew
+
+  Time-based claims (`exp`, `iat`, `auth_time`) are evaluated with a small
+  leeway to tolerate clock drift between Firebase / the client and the
+  server. The default leeway is 60 seconds; override with:
+
+      config :ash_authentication_firebase, clock_skew_leeway_seconds: 30
   """
 
   alias AshAuthentication.Firebase.Errors.InvalidToken
@@ -24,6 +32,7 @@ defmodule AshAuthentication.Firebase.TokenVerifier do
       when is_binary(token) and is_binary(project_id) and token != "" and project_id != "" do
     issuer = @issuer_prefix <> project_id
     now = System.os_time(:second)
+    leeway = clock_skew_leeway()
 
     with {:jwt_header, %JOSE.JWS{alg: {_, :RS256}, fields: %{"kid" => kid}}} <-
            peek_token_kid(token),
@@ -34,11 +43,12 @@ defmodule AshAuthentication.Firebase.TokenVerifier do
          {:validate_sub, true} <-
            {:validate_sub, is_binary(fields["sub"]) and fields["sub"] != ""},
          {:validate_exp, true} <-
-           {:validate_exp, is_integer(fields["exp"]) and fields["exp"] > now},
+           {:validate_exp, is_integer(fields["exp"]) and fields["exp"] > now - leeway},
          {:validate_iat, true} <-
-           {:validate_iat, is_integer(fields["iat"]) and fields["iat"] <= now},
+           {:validate_iat, is_integer(fields["iat"]) and fields["iat"] <= now + leeway},
          {:validate_auth, true} <-
-           {:validate_auth, is_integer(fields["auth_time"]) and fields["auth_time"] <= now} do
+           {:validate_auth,
+            is_integer(fields["auth_time"]) and fields["auth_time"] <= now + leeway} do
       {:ok, fields["sub"], fields}
     else
       {:jwt_header, _} -> error(:invalid_header)
@@ -108,5 +118,9 @@ defmodule AshAuthentication.Firebase.TokenVerifier do
       :key_store,
       AshAuthentication.Firebase.TokenVerifier.KeyStore
     )
+  end
+
+  defp clock_skew_leeway do
+    Application.get_env(:ash_authentication_firebase, :clock_skew_leeway_seconds, 60)
   end
 end
