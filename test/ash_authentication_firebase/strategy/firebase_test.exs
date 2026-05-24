@@ -278,8 +278,7 @@ defmodule AshAuthentication.Strategy.FirebaseTest do
                  []
                )
 
-      assert_receive {:telemetry, %{count: 1},
-                      %{reason: :invalid_issuer, strategy: :firebase}}
+      assert_receive {:telemetry, %{count: 1}, %{reason: :invalid_issuer, strategy: :firebase}}
     end
   end
 

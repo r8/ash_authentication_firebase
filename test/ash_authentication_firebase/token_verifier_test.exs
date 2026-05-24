@@ -33,40 +33,52 @@ defmodule AshAuthentication.Firebase.TokenVerifierTest do
 
   describe "verify/2" do
     test "returns :invalid_token when token is nil" do
-      assert {:error, %InvalidToken{reason: :invalid_token}} = TokenVerifier.verify(nil, @project_id)
+      assert {:error, %InvalidToken{reason: :invalid_token}} =
+               TokenVerifier.verify(nil, @project_id)
     end
 
     test "returns :invalid_project_id when project_id is nil" do
-      assert {:error, %InvalidToken{reason: :invalid_project_id}} = TokenVerifier.verify("token", nil)
+      assert {:error, %InvalidToken{reason: :invalid_project_id}} =
+               TokenVerifier.verify("token", nil)
     end
 
     test "returns :invalid_header for non-JWT garbage" do
-      assert {:error, %InvalidToken{reason: :invalid_header}} = TokenVerifier.verify("not-a-jwt", @project_id)
+      assert {:error, %InvalidToken{reason: :invalid_header}} =
+               TokenVerifier.verify("not-a-jwt", @project_id)
     end
 
     test "returns :invalid_header when alg is not RS256", %{private_jwk: jwk} do
       # JOSE rejects RSA keys with HS256, so sign with an HMAC oct key
       hmac_jwk = JOSE.JWK.from_oct(:crypto.strong_rand_bytes(32))
       token = sign(valid_claims(), %{"alg" => "HS256", "kid" => @kid}, hmac_jwk)
-      assert {:error, %InvalidToken{reason: :invalid_header}} = TokenVerifier.verify(token, @project_id)
+
+      assert {:error, %InvalidToken{reason: :invalid_header}} =
+               TokenVerifier.verify(token, @project_id)
+
       _ = jwk
     end
 
     test "returns :invalid_header when kid is missing", %{private_jwk: jwk} do
       token = sign(valid_claims(), %{"alg" => "RS256"}, jwk)
-      assert {:error, %InvalidToken{reason: :invalid_header}} = TokenVerifier.verify(token, @project_id)
+
+      assert {:error, %InvalidToken{reason: :invalid_header}} =
+               TokenVerifier.verify(token, @project_id)
     end
 
     test "returns :key_not_found when kid does not match any known key",
          %{private_jwk: jwk} do
       token = sign(valid_claims(), %{"alg" => "RS256", "kid" => @other_kid}, jwk)
-      assert {:error, %InvalidToken{reason: :key_not_found}} = TokenVerifier.verify(token, @project_id)
+
+      assert {:error, %InvalidToken{reason: :key_not_found}} =
+               TokenVerifier.verify(token, @project_id)
     end
 
     test "returns :invalid_signature when signed by a different key",
          %{other_private_jwk: jwk} do
       token = sign(valid_claims(), %{"alg" => "RS256", "kid" => @kid}, jwk)
-      assert {:error, %InvalidToken{reason: :invalid_signature}} = TokenVerifier.verify(token, @project_id)
+
+      assert {:error, %InvalidToken{reason: :invalid_signature}} =
+               TokenVerifier.verify(token, @project_id)
     end
 
     test "returns :invalid_issuer when iss is wrong", %{private_jwk: jwk} do
@@ -74,7 +86,8 @@ defmodule AshAuthentication.Firebase.TokenVerifierTest do
         valid_claims(%{"iss" => "https://securetoken.google.com/other-project"})
         |> sign(%{"alg" => "RS256", "kid" => @kid}, jwk)
 
-      assert {:error, %InvalidToken{reason: :invalid_issuer}} = TokenVerifier.verify(token, @project_id)
+      assert {:error, %InvalidToken{reason: :invalid_issuer}} =
+               TokenVerifier.verify(token, @project_id)
     end
 
     test "returns :invalid_audience when aud is wrong", %{private_jwk: jwk} do
@@ -82,13 +95,16 @@ defmodule AshAuthentication.Firebase.TokenVerifierTest do
         valid_claims(%{"aud" => "other-project"})
         |> sign(%{"alg" => "RS256", "kid" => @kid}, jwk)
 
-      assert {:error, %InvalidToken{reason: :invalid_audience}} = TokenVerifier.verify(token, @project_id)
+      assert {:error, %InvalidToken{reason: :invalid_audience}} =
+               TokenVerifier.verify(token, @project_id)
     end
 
     test "returns :invalid_sub when sub is missing", %{private_jwk: jwk} do
       claims = valid_claims() |> Map.delete("sub")
       token = sign(claims, %{"alg" => "RS256", "kid" => @kid}, jwk)
-      assert {:error, %InvalidToken{reason: :invalid_sub}} = TokenVerifier.verify(token, @project_id)
+
+      assert {:error, %InvalidToken{reason: :invalid_sub}} =
+               TokenVerifier.verify(token, @project_id)
     end
 
     test "returns :invalid_sub when sub is an empty string", %{private_jwk: jwk} do
@@ -96,7 +112,8 @@ defmodule AshAuthentication.Firebase.TokenVerifierTest do
         valid_claims(%{"sub" => ""})
         |> sign(%{"alg" => "RS256", "kid" => @kid}, jwk)
 
-      assert {:error, %InvalidToken{reason: :invalid_sub}} = TokenVerifier.verify(token, @project_id)
+      assert {:error, %InvalidToken{reason: :invalid_sub}} =
+               TokenVerifier.verify(token, @project_id)
     end
 
     test "returns :invalid_sub when sub is not a binary", %{private_jwk: jwk} do
@@ -104,7 +121,8 @@ defmodule AshAuthentication.Firebase.TokenVerifierTest do
         valid_claims(%{"sub" => 12_345})
         |> sign(%{"alg" => "RS256", "kid" => @kid}, jwk)
 
-      assert {:error, %InvalidToken{reason: :invalid_sub}} = TokenVerifier.verify(token, @project_id)
+      assert {:error, %InvalidToken{reason: :invalid_sub}} =
+               TokenVerifier.verify(token, @project_id)
     end
 
     test "returns :expired when exp is in the past", %{private_jwk: jwk} do
@@ -130,13 +148,16 @@ defmodule AshAuthentication.Firebase.TokenVerifierTest do
         valid_claims(%{"iat" => now + 600})
         |> sign(%{"alg" => "RS256", "kid" => @kid}, jwk)
 
-      assert {:error, %InvalidToken{reason: :invalid_iat}} = TokenVerifier.verify(token, @project_id)
+      assert {:error, %InvalidToken{reason: :invalid_iat}} =
+               TokenVerifier.verify(token, @project_id)
     end
 
     test "returns :invalid_iat when iat is missing", %{private_jwk: jwk} do
       claims = valid_claims() |> Map.delete("iat")
       token = sign(claims, %{"alg" => "RS256", "kid" => @kid}, jwk)
-      assert {:error, %InvalidToken{reason: :invalid_iat}} = TokenVerifier.verify(token, @project_id)
+
+      assert {:error, %InvalidToken{reason: :invalid_iat}} =
+               TokenVerifier.verify(token, @project_id)
     end
 
     test "returns :invalid_auth_time when auth_time is in the future",
@@ -147,13 +168,16 @@ defmodule AshAuthentication.Firebase.TokenVerifierTest do
         valid_claims(%{"auth_time" => now + 600})
         |> sign(%{"alg" => "RS256", "kid" => @kid}, jwk)
 
-      assert {:error, %InvalidToken{reason: :invalid_auth_time}} = TokenVerifier.verify(token, @project_id)
+      assert {:error, %InvalidToken{reason: :invalid_auth_time}} =
+               TokenVerifier.verify(token, @project_id)
     end
 
     test "returns :invalid_auth_time when auth_time is missing", %{private_jwk: jwk} do
       claims = valid_claims() |> Map.delete("auth_time")
       token = sign(claims, %{"alg" => "RS256", "kid" => @kid}, jwk)
-      assert {:error, %InvalidToken{reason: :invalid_auth_time}} = TokenVerifier.verify(token, @project_id)
+
+      assert {:error, %InvalidToken{reason: :invalid_auth_time}} =
+               TokenVerifier.verify(token, @project_id)
     end
 
     test "returns {:ok, sub, claims} for a fully valid token", %{private_jwk: jwk} do
@@ -175,7 +199,9 @@ defmodule AshAuthentication.Firebase.TokenVerifierTest do
       expect(KeyStoreMock, :get_keys, 2, fn -> {:ok, %{}} end)
       expect(KeyStoreMock, :refresh_now, fn -> :ok end)
       token = sign(valid_claims(), %{"alg" => "RS256", "kid" => @kid}, jwk)
-      assert {:error, %InvalidToken{reason: :key_not_found}} = TokenVerifier.verify(token, @project_id)
+
+      assert {:error, %InvalidToken{reason: :key_not_found}} =
+               TokenVerifier.verify(token, @project_id)
     end
 
     test "the returned InvalidToken struct renders its reason in the exception message" do
@@ -209,7 +235,9 @@ defmodule AshAuthentication.Firebase.TokenVerifierTest do
       expect(KeyStoreMock, :refresh_now, fn -> :ok end)
 
       token = sign(valid_claims(), %{"alg" => "RS256", "kid" => @kid}, jwk)
-      assert {:error, %InvalidToken{reason: :key_not_found}} = TokenVerifier.verify(token, @project_id)
+
+      assert {:error, %InvalidToken{reason: :key_not_found}} =
+               TokenVerifier.verify(token, @project_id)
     end
 
     test "returns :key_not_found when the refresh itself fails", %{private_jwk: jwk} do
@@ -217,7 +245,9 @@ defmodule AshAuthentication.Firebase.TokenVerifierTest do
       expect(KeyStoreMock, :refresh_now, fn -> {:error, :timeout} end)
 
       token = sign(valid_claims(), %{"alg" => "RS256", "kid" => @kid}, jwk)
-      assert {:error, %InvalidToken{reason: :key_not_found}} = TokenVerifier.verify(token, @project_id)
+
+      assert {:error, %InvalidToken{reason: :key_not_found}} =
+               TokenVerifier.verify(token, @project_id)
     end
   end
 

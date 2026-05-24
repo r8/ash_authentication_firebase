@@ -33,13 +33,15 @@ defimpl AshAuthentication.Strategy, for: AshAuthentication.Strategy.Firebase do
   def plug(strategy, :sign_in, conn) do
     params = Map.take(conn.params, [to_string(strategy.token_input)])
 
-    result = action(strategy, :sign_in, params, [])
+    result = action(strategy, :sign_in, params, context: %{conn: conn})
 
     store_authentication_result(conn, result)
   end
 
   def action(strategy, :sign_in, params, options) do
-    with {:ok, project_id} <- fetch_secret(strategy, :project_id),
+    context = Keyword.get(options, :context, %{})
+
+    with {:ok, project_id} <- fetch_secret(strategy, :project_id, context),
          {:ok, firebase_token} <-
            get_firebase_token_from_params(params, strategy.token_input),
          {:ok, uid, fields} <- verify_firebase_token(firebase_token, project_id),
@@ -170,12 +172,18 @@ defimpl AshAuthentication.Strategy, for: AshAuthentication.Strategy.Firebase do
     end
   end
 
-  defp fetch_secret(strategy, secret_name) do
+  defp fetch_secret(strategy, secret_name, context) do
     path = [:authentication, :strategies, strategy.name, secret_name]
 
     with {:ok, {secret_module, secret_opts}} <- Map.fetch(strategy, secret_name),
          {:ok, secret} when is_binary(secret) and byte_size(secret) > 0 <-
-           secret_module.secret_for(path, strategy.resource, secret_opts, %{}) do
+           AshAuthentication.Secret.secret_for(
+             secret_module,
+             path,
+             strategy.resource,
+             secret_opts,
+             context
+           ) do
       {:ok, secret}
     else
       {:ok, secret} ->
