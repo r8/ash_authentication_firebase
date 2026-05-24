@@ -71,6 +71,20 @@ defimpl AshAuthentication.Strategy, for: AshAuthentication.Strategy.Firebase do
 
         {:error, Errors.InvalidToken.exception(type: :sign_in)}
 
+      {:error, %Errors.MissingSecret{} = error} ->
+        Logger.error("Firebase strategy misconfigured: missing secret",
+          path: error.path,
+          strategy: strategy.name
+        )
+
+        :telemetry.execute(
+          [:ash_authentication_firebase, :strategy, :missing_secret],
+          %{count: 1},
+          %{strategy: strategy.name, path: error.path}
+        )
+
+        {:error, Errors.InvalidToken.exception(type: :sign_in)}
+
       _ ->
         {:error, Errors.InvalidToken.exception(type: :sign_in)}
     end

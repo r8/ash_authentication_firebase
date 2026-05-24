@@ -280,6 +280,40 @@ defmodule AshAuthentication.Strategy.FirebaseTest do
 
       assert_receive {:telemetry, %{count: 1}, %{reason: :invalid_issuer, strategy: :firebase}}
     end
+
+    test "emits :missing_secret and logs an error when the project_id secret is blank",
+         %{private_jwk: jwk} do
+      handler_id = "fbtest-#{System.unique_integer([:positive])}"
+      test_pid = self()
+
+      :telemetry.attach(
+        handler_id,
+        [:ash_authentication_firebase, :strategy, :missing_secret],
+        fn _event, measurements, metadata, _ ->
+          send(test_pid, {:telemetry, measurements, metadata})
+        end,
+        nil
+      )
+
+      on_exit(fn -> :telemetry.detach(handler_id) end)
+
+      token = sign(claims_for("uid-missing-secret"), jwk)
+
+      log =
+        ExUnit.CaptureLog.capture_log(fn ->
+          assert {:error, %InvalidToken{}} =
+                   AshAuthentication.Strategy.action(
+                     strategy(BlankSecretUser),
+                     :sign_in,
+                     %{"firebase_token" => token},
+                     []
+                   )
+        end)
+
+      assert log =~ "Firebase strategy misconfigured: missing secret"
+      assert_receive {:telemetry, %{count: 1}, %{strategy: :firebase, path: path}}
+      assert is_list(path) and :project_id in path
+    end
   end
 
   describe "transformer defaults" do

@@ -5,7 +5,7 @@ import Config
 # library's own test output. Host applications have their own logger config
 # and are unaffected — they should add these keys to their own
 # `:default_formatter` metadata list if they want to surface them.
-config :logger, :default_formatter, metadata: [:reason, :strategy]
+config :logger, :default_formatter, metadata: [:reason, :strategy, :path]
 
 if File.exists?(Path.join(__DIR__, "#{config_env()}.exs")) do
   import_config "#{config_env()}.exs"

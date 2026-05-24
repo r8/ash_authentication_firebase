@@ -11,7 +11,7 @@
 - Structured errors `Errors.EmailNotVerified` and `Errors.InvalidToken` (with a `:reason` field)
 - Support for multiple Firebase strategies with different `project_id`s on one resource
 - Clock-skew leeway (`clock_skew_leeway_seconds`, default 60s, valid range 0..300)
-- Telemetry events for key-store fetches and token rejections
+- Telemetry events for key-store fetches, token rejections, and missing-secret misconfiguration (`[:ash_authentication_firebase, :strategy, :missing_secret]`); missing secrets also now log a distinct `Logger.error` so operators can tell config errors apart from invalid-token traffic
 - `uid` now included in the user info map; `token_input` accepts atom or string keys
 
 ### Changed

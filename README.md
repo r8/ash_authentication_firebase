@@ -118,10 +118,12 @@ The library emits the following `:telemetry` events. Attach handlers to pipe the
 | `[:ash_authentication_firebase, :key_store, :fetched]` | `%{retry_attempt, keys_count, expires_in}` | `%{}` |
 | `[:ash_authentication_firebase, :key_store, :fetch_failed]` | `%{retry_attempt, delay}` | `%{reason}` |
 | `[:ash_authentication_firebase, :strategy, :token_rejected]` | `%{count: 1}` | `%{reason, strategy}` |
+| `[:ash_authentication_firebase, :strategy, :missing_secret]` | `%{count: 1}` | `%{strategy, path}` |
 
 - `:fetched` fires after a successful refresh of Google's public keys. `expires_in` is the milliseconds until the next scheduled refresh derived from the response's `Cache-Control: max-age`. `retry_attempt` reports how many failed attempts preceded this success (`0` on the happy path).
 - `:fetch_failed` fires whenever a key fetch fails. `delay` is the milliseconds until the next retry; `reason` is the underlying error (a `Mint.TransportError`, an HTTP status string, `:timeout`, `:no_valid_keys`, `:invalid_key_response`, etc.).
 - `:token_rejected` fires when token verification fails at the strategy boundary. `reason` is one of the values listed in `AshAuthentication.Firebase.Errors.InvalidToken`'s `t:reason/0` type (e.g. `:invalid_signature`, `:expired`, `:invalid_audience`); `strategy` is the strategy name configured in the DSL.
+- `:missing_secret` fires when sign-in fails because a required secret (currently `:project_id`) is unset or resolves to a blank value. `path` is the DSL path of the missing secret; `strategy` is the strategy name. Distinguishes operator misconfiguration from end-user bad-token traffic, which both surface to the client as `InvalidToken`.
 
 ## Acknowledgements
 
