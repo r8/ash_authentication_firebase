@@ -4,6 +4,7 @@
 
 ### Added
 
+- Dialyzer to CI alongside `mix test`, `mix credo --strict`, and `mix format --check-formatted`
 - README "Security model" section enumerating what's verified vs. out of scope (notably token revocation) with shared pools
 - DSL options: `registration_enabled?` (default `true`) for authenticating only pre-provisioned users, plus `sign_in_action_name` and `register_action_name` to customize the relevant actions
 - DSL option `require_email_verified?` (default `true`) rejecting tokens without a `true` `email_verified` claim

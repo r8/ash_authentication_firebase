@@ -14,7 +14,8 @@ defmodule AshAuthentication.Firebase.MixProject do
       description: description(),
       package: package(),
       docs: docs(),
-      deps: deps()
+      deps: deps(),
+      dialyzer: dialyzer()
     ]
   end
 
@@ -39,8 +40,18 @@ defmodule AshAuthentication.Firebase.MixProject do
       {:telemetry, "~> 1.0"},
       {:ex_doc, ">= 0.0.0", only: :dev, runtime: false},
       {:credo, "~> 1.7", only: [:dev, :test], runtime: false},
+      {:dialyxir, "~> 1.4", only: [:dev, :test], runtime: false},
       {:mox, "~> 1.1", only: :test},
       {:bypass, "~> 2.1", only: :test}
+    ]
+  end
+
+  defp dialyzer do
+    [
+      plt_core_path: "priv/plts",
+      plt_local_path: "priv/plts/local.plt",
+      plt_add_apps: [:ex_unit, :mix],
+      flags: [:error_handling, :unknown, :unmatched_returns]
     ]
   end
 

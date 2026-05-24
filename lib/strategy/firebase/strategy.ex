@@ -57,9 +57,6 @@ defimpl AshAuthentication.Strategy, for: AshAuthentication.Strategy.Firebase do
       {:error, :email_not_verified} ->
         {:error, EmailNotVerified.exception(strategy: strategy.name)}
 
-      {:error, %AuthenticationFailed{} = error} ->
-        {:error, error}
-
       {:error, %InvalidToken{reason: reason}} ->
         Logger.debug("Firebase token rejected",
           reason: reason,

@@ -104,15 +104,8 @@ defmodule AshAuthentication.Strategy.Firebase.Transformer do
   defp maybe_validate_sign_in_action(dsl_state, strategy) do
     with {:ok, action} <- validate_action_exists(dsl_state, strategy.sign_in_action_name),
          :ok <- validate_action_has_argument(action, :user_info),
-         :ok <- validate_action_argument_option(action, :user_info, :type, [Type.Map, :map]),
-         :ok <- validate_action_argument_option(action, :user_info, :allow_nil?, [false]) do
-      :ok
-    else
-      {:error, reason} when is_binary(reason) ->
-        {:error, "`#{inspect(strategy.sign_in_action_name)}` action: #{reason}"}
-
-      {:error, reason} ->
-        {:error, reason}
+         :ok <- validate_action_argument_option(action, :user_info, :type, [Type.Map, :map]) do
+      validate_action_argument_option(action, :user_info, :allow_nil?, [false])
     end
   end
 end

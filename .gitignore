@@ -30,3 +30,6 @@ ash_authentication_firebase-*.tar
 
 # Ignore the mix lock file
 /mix.lock
+
+# Dialyzer PLTs
+/priv/plts/
