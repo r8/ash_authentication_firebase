@@ -97,6 +97,16 @@ authentication do
 end
 ```
 
+## Sharing a Finch pool
+
+By default this library starts its own Finch pool named `AshAuthentication.Firebase.Finch` for fetching Google's public keys. To reuse an existing pool managed by your host application instead, set:
+
+```elixir
+config :ash_authentication_firebase, finch_name: MyApp.Finch
+```
+
+When this is set, the library will not start its own Finch pool and will route all key-fetch requests through the configured one. Ensure `MyApp.Finch` is started by your host application's supervision tree before `:ash_authentication_firebase` starts.
+
 ## Acknowledgements
 
 Inspired by [ExFirebaseAuth](https://github.com/Nickforall/ExFirebaseAuth).

@@ -5,12 +5,33 @@ defmodule AshAuthentication.Firebase do
 
   use Application
 
+  @default_finch_name __MODULE__.Finch
+
+  @doc """
+  Returns the Finch pool name used for HTTP requests.
+
+  Defaults to the library-managed pool. Override with
+  `config :ash_authentication_firebase, finch_name: MyApp.Finch` to share an
+  externally-managed pool.
+  """
+  @spec finch_name() :: atom()
+  def finch_name do
+    Application.get_env(:ash_authentication_firebase, :finch_name, @default_finch_name)
+  end
+
   def start(_type, _args) do
-    children = [
-      {Finch, name: AshAuthentication.Firebase.Finch},
-      {AshAuthentication.Firebase.TokenVerifier.KeyStore,
-       name: AshAuthentication.Firebase.TokenVerifier.KeyStore}
-    ]
+    finch_children =
+      case Application.get_env(:ash_authentication_firebase, :finch_name) do
+        nil -> [{Finch, name: @default_finch_name}]
+        _ -> []
+      end
+
+    children =
+      finch_children ++
+        [
+          {AshAuthentication.Firebase.TokenVerifier.KeyStore,
+           name: AshAuthentication.Firebase.TokenVerifier.KeyStore}
+        ]
 
     opts = [strategy: :one_for_one, name: AshAuthentication.Firebase.Supervisor]
     Supervisor.start_link(children, opts)

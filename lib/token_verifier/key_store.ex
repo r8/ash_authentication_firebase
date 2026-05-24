@@ -11,8 +11,8 @@ defmodule AshAuthentication.Firebase.TokenVerifier.KeyStore do
   @default_refresh_interval :timer.minutes(30)
   @initial_retry :timer.seconds(1)
   @max_retry :timer.minutes(5)
+  @request_timeout :timer.seconds(10)
   @name __MODULE__
-  @finch_name AshAuthentication.Firebase.Finch
   @telemetry_prefix [:ash_authentication_firebase, :key_store]
 
   # Client API
@@ -103,7 +103,9 @@ defmodule AshAuthentication.Firebase.TokenVerifier.KeyStore do
   defp fetch_google_keys do
     request = Finch.build(:get, @google_keys_url, [{"accept", "application/json"}])
 
-    case Finch.request(request, @finch_name) do
+    case Finch.request(request, AshAuthentication.Firebase.finch_name(),
+           receive_timeout: @request_timeout
+         ) do
       {:ok, %{status: 200, headers: headers, body: body}} ->
         with {:ok, json_data} <- Jason.decode(body),
              {:ok, keys} <- convert_to_jose_keys(json_data),
@@ -113,6 +115,9 @@ defmodule AshAuthentication.Firebase.TokenVerifier.KeyStore do
 
       {:ok, %{status: status, body: body}} ->
         {:error, "HTTP #{status}: #{body}"}
+
+      {:error, %Mint.TransportError{reason: :timeout}} ->
+        {:error, :timeout}
 
       {:error, reason} ->
         {:error, reason}
