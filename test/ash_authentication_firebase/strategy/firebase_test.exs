@@ -3,9 +3,9 @@ defmodule AshAuthentication.Strategy.FirebaseTest do
 
   import Mox
 
-  alias AshAuthentication.Errors.AuthenticationFailed
+  alias AshAuthentication.Errors.{AuthenticationFailed, InvalidToken}
   alias AshAuthentication.Firebase.TokenVerifier.KeyStoreMock
-  alias AshAuthentication.Strategy.FirebaseTest.{RegisterUser, SignInOnlyUser}
+  alias AshAuthentication.Strategy.FirebaseTest.{OtherProjectUser, RegisterUser, SignInOnlyUser}
 
   @project_id "test-project"
   @kid "test-kid"
@@ -99,6 +99,38 @@ defmodule AshAuthentication.Strategy.FirebaseTest do
     end
   end
 
+  describe "multiple strategies with different project_ids" do
+    test "a token is accepted by the strategy whose project_id matches its aud/iss",
+         %{private_jwk: jwk} do
+      token = sign(claims_for("uid-other", "other-test-project", %{}), jwk)
+
+      assert {:ok, user} =
+               AshAuthentication.Strategy.action(
+                 strategy(OtherProjectUser),
+                 :sign_in,
+                 %{"firebase_token" => token},
+                 []
+               )
+
+      assert user.uid == "uid-other"
+    end
+
+    test "a token signed for one project is rejected by a strategy bound to a different project",
+         %{private_jwk: jwk} do
+      token = sign(claims_for("uid-cross", "other-test-project", %{}), jwk)
+
+      assert {:error, %InvalidToken{}} =
+               AshAuthentication.Strategy.action(
+                 strategy(RegisterUser),
+                 :sign_in,
+                 %{"firebase_token" => token},
+                 []
+               )
+
+      assert {:ok, []} = Ash.read(RegisterUser)
+    end
+  end
+
   describe "transformer validation" do
     test "rejects a resource whose sign_in_action_name action does not exist" do
       assert_raise Spark.Error.DslError, ~r/sign_in_with_firebase/, fn ->
@@ -167,13 +199,15 @@ defmodule AshAuthentication.Strategy.FirebaseTest do
     |> Ash.create!()
   end
 
-  defp claims_for(sub, overrides \\ %{}) do
+  defp claims_for(sub, overrides \\ %{}), do: claims_for(sub, @project_id, overrides)
+
+  defp claims_for(sub, project_id, overrides) do
     now = System.os_time(:second)
 
     Map.merge(
       %{
-        "iss" => "https://securetoken.google.com/#{@project_id}",
-        "aud" => @project_id,
+        "iss" => "https://securetoken.google.com/#{project_id}",
+        "aud" => project_id,
         "sub" => sub,
         "exp" => now + 3600,
         "iat" => now - 10,

@@ -41,7 +41,9 @@ defmodule MyApp.Accounts.User do
     domain MyApp.Accounts
 
     strategies do
-      # You can have multiple firebase strategies
+      # Multiple firebase strategies with different project_ids are supported.
+      # Each strategy verifies tokens against its own project_id (iss/aud claims)
+      # and rejects tokens issued for any other project.
       firebase :firebase do
         project_id "project-123abc"
         token_input :firebase_token
@@ -52,6 +54,18 @@ defmodule MyApp.Accounts.User do
 
 end
 ```
+
+### A note on the shared key cache
+
+The library starts a single global `Finch` pool and a single global `KeyStore`
+GenServer. This is intentional: Google publishes one shared JWK set for all
+Firebase projects at `securetoken@system.gserviceaccount.com`, and keys are
+looked up by `kid` — so a per-strategy cache would only duplicate the same
+keyring. Per-project `iss`/`aud` enforcement happens during token verification,
+not at the cache layer. If you ever need a per-project key source (a custom
+auth server, the Firebase Auth emulator, or a non-Google IdP emulating
+Firebase), per-strategy `KeyStore`/`Finch` would be required — currently out of
+scope.
 
 ## Secrets and Runtime Configuration
 
