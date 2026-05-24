@@ -29,9 +29,7 @@ defmodule AshAuthentication.Firebase.TokenVerifier do
 
     with {:jwt_header, %JOSE.JWS{alg: {_, :RS256}, fields: %{"kid" => kid}}} <-
            peek_token_kid(token),
-         # read key from store, with one sync refresh-on-miss to handle key rotation
          {:ok, %JOSE.JWK{} = key} <- get_public_key_or_refresh(kid),
-         # check if verify returns true
          {:verify, {true, %{fields: fields}, _}} <-
            {:verify, JOSE.JWT.verify_strict(key, ["RS256"], token)},
          {:validate_iss, true} <- {:validate_iss, fields["iss"] == issuer},

@@ -2,6 +2,28 @@
 
 ## [Unreleased]
 
+### Added
+
+- DSL option `registration_enabled?` (default `true`) — set to `false` to authenticate only pre-provisioned users
+- DSL option `sign_in_action_name` for sign-in-only mode, with sensible default `:sign_in_with_<name>`
+- DSL option `register_action_name` to customize the registration action
+- DSL option `require_email_verified?` (default `true`) — rejects tokens whose `email_verified` claim is not `true`
+- `AshAuthentication.Firebase.Errors.EmailNotVerified` error for unverified-email rejections
+- `AshAuthentication.Firebase.Errors.InvalidToken` structured error with a `:reason` field describing the specific verification failure
+- Support for multiple Firebase strategies with different `project_id`s on the same resource
+- Configurable shared Finch pool via `config :ash_authentication_firebase, finch_name: MyApp.Finch`
+- Telemetry events: `[:ash_authentication_firebase, :key_store, :fetched | :fetch_failed]` and `[:ash_authentication_firebase, :strategy, :token_rejected]`
+- `uid` is now included in the user info map passed to the Ash action
+- `token_input` parameter accepts either atom or string keys
+
+### Changed
+
+- Key store reads now use `:persistent_term` — lock-free and free of GenServer serialization on every authentication
+- Synchronous key-store refresh on key miss so the first request after a key rotation no longer fails
+- Exponential retry backoff with jitter on key-fetch failures, capped at 5 minutes
+- `Cache-Control: max-age` parsing is now regex-based and tolerates quoted values
+- Stricter `project_id` secret validation — blank/empty values are treated as missing
+
 ### Fixed
 
 - Add missing verifications for Firebase keys

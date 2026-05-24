@@ -6,8 +6,6 @@
 
 Firebase token authentication strategy for [AshAuthentication](https://github.com/team-alembic/ash_authentication).
 
-> 🛠 In development. Use at your own risk.
-
 ## Requirements
 
 - [AshAuthentication](https://github.com/team-alembic/ash_authentication) ~> 4.0
@@ -19,14 +17,14 @@ The package can be installed by adding `ash_authentication_firebase` to your lis
 ```elixir
 def deps do
   [
-    {:ash_authentication_firebase, "~> 1.0.0"}
+    {:ash_authentication_firebase, "~> 1.0"}
   ]
 end
 ```
 
 ## Usage
 
-Please consult with official [Ash documentation](https://hexdocs.pm/ash_authentication/get-started.html) on how to configure your resource.
+Please consult official [Ash documentation](https://hexdocs.pm/ash_authentication/get-started.html) on how to configure your resource.
 
 Add `AshAuthentication.Strategy.Firebase` to your resource `extensions` list and `:firebase` strategy to the `authentication` section:
 
