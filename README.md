@@ -102,7 +102,7 @@ This library performs the [token-verification checks documented by Firebase](htt
 - **Header**: `alg` is `RS256` and `kid` matches one of Google's currently published public keys.
 - **Signature**: the token is signed by the matching key.
 - **Claims**: `iss` is `https://securetoken.google.com/<project_id>`, `aud` is `<project_id>`, `sub` is a non-empty string, `exp` is in the future, `iat` and `auth_time` are in the past (each within `:clock_skew_leeway_seconds`, default 60s, valid range `0..300`).
-- **Email verification** (when `require_email_verified?` is `true`, the default): `email_verified` must be the literal boolean `true`.
+- **Email verification** (when `require_email_verified?` is `true`, the default): tokens whose `email` claim is present and non-empty must also have `email_verified` set to the literal boolean `true`. Tokens without an `email` claim (phone-auth, anonymous) are unaffected.
 
 What this library does **not** verify:
 
