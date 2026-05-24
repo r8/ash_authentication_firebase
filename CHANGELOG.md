@@ -25,6 +25,7 @@
 - Blank/non-binary secrets correctly produce `MissingSecret`; non-binary or empty token params short-circuit as missing
 - Added missing key verifications and pass all token fields to the Ash resource
 - `KeyStore` now honors the `:refresh_interval` start option as the fallback when Google's response lacks a parseable `Cache-Control: max-age` header (previously the option was silently ignored)
+- `KeyStore` no longer crashes when Google's JWKS response contains a non-binary, empty, or non-PEM value — the bad entry is skipped and the remaining valid keys are loaded
 
 ## [1.0.0] - 2026-05-05
 

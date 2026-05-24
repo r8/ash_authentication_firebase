@@ -209,17 +209,14 @@ defmodule AshAuthentication.Firebase.TokenVerifier.KeyStore do
     end
   end
 
-  defp convert_to_jose_keys(json_data) when is_map(json_data) do
+  @doc false
+  def convert_to_jose_keys(json_data) when is_map(json_data) do
     keys =
-      json_data
-      |> Enum.map(fn {key, value} ->
-        case JOSE.JWK.from_pem(value) do
-          [] -> {key, nil}
-          jwk -> {key, jwk}
-        end
-      end)
-      |> Enum.filter(fn {_, value} -> not is_nil(value) end)
-      |> Map.new()
+      for {key, value} <- json_data,
+          is_binary(key),
+          {:ok, jwk} <- [pem_to_jwk(value)],
+          into: %{},
+          do: {key, jwk}
 
     if map_size(keys) > 0 do
       {:ok, keys}
@@ -228,7 +225,18 @@ defmodule AshAuthentication.Firebase.TokenVerifier.KeyStore do
     end
   end
 
-  defp convert_to_jose_keys(_), do: {:error, :invalid_key_response}
+  def convert_to_jose_keys(_), do: {:error, :invalid_key_response}
+
+  defp pem_to_jwk(value) when is_binary(value) and byte_size(value) > 0 do
+    case JOSE.JWK.from_pem(value) do
+      %JOSE.JWK{} = jwk -> {:ok, jwk}
+      _ -> :error
+    end
+  rescue
+    _ -> :error
+  end
+
+  defp pem_to_jwk(_), do: :error
 
   defp extract_max_age(headers, fallback) do
     headers
