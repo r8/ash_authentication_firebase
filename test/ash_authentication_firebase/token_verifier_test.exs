@@ -85,6 +85,20 @@ defmodule AshAuthentication.Firebase.TokenVerifierTest do
                TokenVerifier.verify(token, @project_id)
     end
 
+    test "returns :invalid_header when kid is an empty string", %{private_jwk: jwk} do
+      token = sign(valid_claims(), %{"alg" => "RS256", "kid" => ""}, jwk)
+
+      assert {:error, %InvalidToken{reason: :invalid_header}} =
+               TokenVerifier.verify(token, @project_id)
+    end
+
+    test "returns :invalid_header when kid is not a binary", %{private_jwk: jwk} do
+      token = sign(valid_claims(), %{"alg" => "RS256", "kid" => 12_345}, jwk)
+
+      assert {:error, %InvalidToken{reason: :invalid_header}} =
+               TokenVerifier.verify(token, @project_id)
+    end
+
     test "returns :key_not_found when kid does not match any known key",
          %{private_jwk: jwk} do
       token = sign(valid_claims(), %{"alg" => "RS256", "kid" => @other_kid}, jwk)
@@ -143,6 +157,27 @@ defmodule AshAuthentication.Firebase.TokenVerifierTest do
 
       assert {:error, %InvalidToken{reason: :invalid_sub}} =
                TokenVerifier.verify(token, @project_id)
+    end
+
+    test "returns :invalid_sub when sub exceeds 128 chars", %{private_jwk: jwk} do
+      too_long = String.duplicate("a", 129)
+
+      token =
+        valid_claims(%{"sub" => too_long})
+        |> sign(%{"alg" => "RS256", "kid" => @kid}, jwk)
+
+      assert {:error, %InvalidToken{reason: :invalid_sub}} =
+               TokenVerifier.verify(token, @project_id)
+    end
+
+    test "accepts sub at exactly 128 chars", %{private_jwk: jwk} do
+      sub = String.duplicate("a", 128)
+
+      token =
+        valid_claims(%{"sub" => sub})
+        |> sign(%{"alg" => "RS256", "kid" => @kid}, jwk)
+
+      assert {:ok, ^sub, _claims} = TokenVerifier.verify(token, @project_id)
     end
 
     test "returns :expired when exp is in the past", %{private_jwk: jwk} do

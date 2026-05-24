@@ -23,6 +23,7 @@ defmodule AshAuthentication.Firebase.TokenVerifier do
   @default_clock_skew_leeway 60
   @max_clock_skew_leeway 300
   @clock_skew_cache_key {__MODULE__, :clock_skew_leeway}
+  @max_sub_length 128
 
   @type claims :: %{optional(String.t()) => term()}
 
@@ -42,14 +43,14 @@ defmodule AshAuthentication.Firebase.TokenVerifier do
     now = System.os_time(:second)
     leeway = clock_skew_leeway()
 
-    with {:jwt_header, %JOSE.JWS{alg: {_, :RS256}, fields: %{"kid" => kid}}} <-
+    with {:jwt_header, %JOSE.JWS{alg: {_, :RS256}, fields: %{"kid" => kid}}}
+         when is_binary(kid) and kid != "" <-
            peek_token_kid(token),
          {:ok, %JOSE.JWK{} = key} <- get_public_key_or_refresh(kid),
          {:verify, {true, %{fields: fields}, _}} <- verify_jwt(key, token),
          {:validate_iss, true} <- {:validate_iss, fields["iss"] == issuer},
          {:validate_aud, true} <- {:validate_aud, fields["aud"] == project_id},
-         {:validate_sub, true} <-
-           {:validate_sub, is_binary(fields["sub"]) and fields["sub"] != ""},
+         {:validate_sub, true} <- {:validate_sub, valid_sub?(fields["sub"])},
          {:validate_exp, true} <-
            {:validate_exp, is_integer(fields["exp"]) and fields["exp"] > now - leeway},
          {:validate_iat, true} <-
@@ -79,6 +80,11 @@ defmodule AshAuthentication.Firebase.TokenVerifier do
   def verify(_token, _project_id), do: error(:invalid_token)
 
   defp error(reason), do: {:error, InvalidToken.exception(reason: reason)}
+
+  defp valid_sub?(sub) when is_binary(sub),
+    do: sub != "" and byte_size(sub) <= @max_sub_length
+
+  defp valid_sub?(_), do: false
 
   defp get_public_key_or_refresh(kid) do
     case lookup_key(kid) do
