@@ -4,40 +4,26 @@
 
 ### Added
 
-- DSL option `registration_enabled?` (default `true`) — set to `false` to authenticate only pre-provisioned users
-- DSL option `sign_in_action_name` for sign-in-only mode, with sensible default `:sign_in_with_<name>`
-- DSL option `register_action_name` to customize the registration action
-- DSL option `require_email_verified?` (default `true`) — rejects tokens whose `email_verified` claim is not `true`
-- `AshAuthentication.Firebase.Errors.EmailNotVerified` error for unverified-email rejections
-- `AshAuthentication.Firebase.Errors.InvalidToken` structured error with a `:reason` field describing the specific verification failure
-- Support for multiple Firebase strategies with different `project_id`s on the same resource
-- Configurable shared Finch pool via `config :ash_authentication_firebase, finch_name: MyApp.Finch`
-- Telemetry events: `[:ash_authentication_firebase, :key_store, :fetched | :fetch_failed]` and `[:ash_authentication_firebase, :strategy, :token_rejected]`
-- `uid` is now included in the user info map passed to the Ash action
-- `token_input` parameter accepts either atom or string keys
-- Configurable clock-skew leeway via `config :ash_authentication_firebase, clock_skew_leeway_seconds: <n>` (default 60s), applied to `exp` / `iat` / `auth_time` checks
+- DSL options: `registration_enabled?` (default `true`) for authenticating only pre-provisioned users, plus `sign_in_action_name` and `register_action_name` to customize the relevant actions
+- DSL option `require_email_verified?` (default `true`) rejecting tokens without a `true` `email_verified` claim
+- Structured errors `Errors.EmailNotVerified` and `Errors.InvalidToken` (with a `:reason` field)
+- Support for multiple Firebase strategies with different `project_id`s on one resource
+- Configurable shared Finch pool (`finch_name`) and clock-skew leeway (`clock_skew_leeway_seconds`, default 60s)
+- Telemetry events for key-store fetches and token rejections
+- `uid` now included in the user info map; `token_input` accepts atom or string keys
 
 ### Changed
 
-- Key store reads now use `:persistent_term` — lock-free and free of GenServer serialization on every authentication
-- Synchronous key-store refresh on key miss so the first request after a key rotation no longer fails
-- Exponential retry backoff with jitter on key-fetch failures, capped at 5 minutes
-- `Cache-Control: max-age` parsing is now regex-based and tolerates quoted values
-- `Cache-Control: max-age` values are now clamped to 24 hours to defend `Process.send_after` against pathological upstream values
-- The JWKS HTTP response shape is now validated — a non-map JSON body fails as `:invalid_key_response` instead of raising
-- Stricter `project_id` secret validation — blank/empty values are treated as missing
-- KeyStore `refresh_now/0` debounce shortened from 10s to 1s so a token with a freshly rotated `kid` arriving shortly after a prior refresh can still recover
-- The application supervisor no longer starts the bundled `KeyStore` when a custom `:key_store` implementation is configured — tests and hosts supplying their own implementation are no longer surprised by background HTTP requests to Google
+- Key store now reads from `:persistent_term` (lock-free) and refreshes synchronously on a key miss, so the first request after a key rotation no longer fails
+- Key-fetch failures retry with jittered exponential backoff (capped at 5 min); refresh debounce shortened to 1s
+- Hardened JWKS handling: regex-based `max-age` parsing (clamped to 24h), validated response shape, and stricter `project_id` secret validation
+- Bundled `KeyStore` no longer starts when a custom `:key_store` is configured
 
 ### Fixed
 
-- Add missing verifications for Firebase keys
-- Pass all token fields to Ash Resource
-- `TokenVerifier.verify/2` no longer crashes when the key store returns `:not_initialized` or any other error — it now refreshes once and falls back to `:key_not_found` cleanly
-- `TokenVerifier.verify/2` no longer raises a `FunctionClauseError` on non-binary / empty-string token or `project_id` arguments
-- `JOSE.JWT.verify_strict/3` exceptions on malformed payloads are now caught and surfaced as `:malformed_payload`
-- Blank/non-binary resolved secrets now correctly produce `MissingSecret` instead of silently passing through the `project_id` guard
-- `firebase_token` params that are present but non-binary or empty no longer reach the verifier; they short-circuit as a missing token
+- `TokenVerifier.verify/2` no longer crashes on key-store errors, non-binary/empty token or `project_id` arguments, or malformed payloads — these now surface as clean error tuples (`:key_not_found`, `:malformed_payload`, etc.)
+- Blank/non-binary secrets correctly produce `MissingSecret`; non-binary or empty token params short-circuit as missing
+- Added missing key verifications and pass all token fields to the Ash resource
 
 ## [1.0.0] - 2026-05-05
 
