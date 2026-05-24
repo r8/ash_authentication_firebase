@@ -95,15 +95,19 @@ authentication do
 end
 ```
 
-## Sharing a Finch pool
+## Security model
 
-By default this library starts its own Finch pool named `AshAuthentication.Firebase.Finch` for fetching Google's public keys. To reuse an existing pool managed by your host application instead, set:
+This library performs the [token-verification checks documented by Firebase](https://firebase.google.com/docs/auth/admin/verify-id-tokens):
 
-```elixir
-config :ash_authentication_firebase, finch_name: MyApp.Finch
-```
+- **Header**: `alg` is `RS256` and `kid` matches one of Google's currently published public keys.
+- **Signature**: the token is signed by the matching key.
+- **Claims**: `iss` is `https://securetoken.google.com/<project_id>`, `aud` is `<project_id>`, `sub` is a non-empty string, `exp` is in the future, `iat` and `auth_time` are in the past (each within `:clock_skew_leeway_seconds`, default 60s, valid range `0..300`).
+- **Email verification** (when `require_email_verified?` is `true`, the default): `email_verified` must be the literal boolean `true`.
 
-When this is set, the library will not start its own Finch pool and will route all key-fetch requests through the configured one. Ensure `MyApp.Finch` is started by your host application's supervision tree before `:ash_authentication_firebase` starts.
+What this library does **not** verify:
+
+- **Revocation / disabled users.** Firebase ID tokens do not reflect server-side state changes until they expire (up to one hour). If you need immediate logout on password reset, account disablement, or admin ban, layer that check inside your Ash sign-in / register action — e.g. consult a "revoked_at" attribute on the user or call Firebase Admin's [`verifyIdToken(..., checkRevoked = true)`](https://firebase.google.com/docs/auth/admin/manage-sessions#detect_id_token_revocation) from a custom change.
+- **Custom claim policies.** All custom claims pass through untouched; enforcing role / tenant constraints based on them is your resource's responsibility.
 
 ## Telemetry
 

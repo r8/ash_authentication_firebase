@@ -193,7 +193,7 @@ defmodule AshAuthentication.Firebase.TokenVerifier.KeyStore do
   defp fetch_google_keys(url, refresh_fallback) do
     request = Finch.build(:get, url, [{"accept", "application/json"}])
 
-    case Finch.request(request, AshAuthentication.Firebase.finch_name(),
+    case Finch.request(request, AshAuthentication.Firebase.Finch,
            receive_timeout: @request_timeout
          ) do
       {:ok, %{status: 200, headers: headers, body: body}} ->

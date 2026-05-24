@@ -4,11 +4,12 @@
 
 ### Added
 
+- README "Security model" section enumerating what's verified vs. out of scope (notably token revocation) with shared pools
 - DSL options: `registration_enabled?` (default `true`) for authenticating only pre-provisioned users, plus `sign_in_action_name` and `register_action_name` to customize the relevant actions
 - DSL option `require_email_verified?` (default `true`) rejecting tokens without a `true` `email_verified` claim
 - Structured errors `Errors.EmailNotVerified` and `Errors.InvalidToken` (with a `:reason` field)
 - Support for multiple Firebase strategies with different `project_id`s on one resource
-- Configurable shared Finch pool (`finch_name`) and clock-skew leeway (`clock_skew_leeway_seconds`, default 60s, valid range 0..300)
+- Clock-skew leeway (`clock_skew_leeway_seconds`, default 60s, valid range 0..300)
 - Telemetry events for key-store fetches and token rejections
 - `uid` now included in the user info map; `token_input` accepts atom or string keys
 
