@@ -16,7 +16,7 @@ defmodule AshAuthentication.Strategy.Firebase do
   @type t :: %__MODULE__{
           __spark_metadata__: term(),
           name: atom(),
-          project_id: {module(), Keyword.t()} | nil,
+          project_id: nil | String.t() | {module(), Keyword.t()},
           token_input: atom() | nil,
           register_action_name: atom() | nil,
           sign_in_action_name: atom() | nil,
