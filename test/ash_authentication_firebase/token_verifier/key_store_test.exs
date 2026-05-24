@@ -60,4 +60,42 @@ defmodule AshAuthentication.Firebase.TokenVerifier.KeyStoreTest do
       assert Map.keys(keys) == ["kid-1"]
     end
   end
+
+  describe "extract_max_age/2" do
+    @fallback :timer.minutes(30)
+
+    test "uses fallback when no Cache-Control header is present" do
+      assert KeyStore.extract_max_age([{"content-type", "application/json"}], @fallback) ==
+               @fallback
+    end
+
+    test "uses fallback when Cache-Control has no max-age directive" do
+      assert KeyStore.extract_max_age([{"cache-control", "no-cache"}], @fallback) == @fallback
+    end
+
+    test "parses a typical max-age value" do
+      assert KeyStore.extract_max_age([{"cache-control", "public, max-age=600"}], @fallback) ==
+               :timer.seconds(600)
+    end
+
+    test "floors max-age=0 to 60 seconds" do
+      assert KeyStore.extract_max_age([{"cache-control", "max-age=0"}], @fallback) ==
+               :timer.seconds(60)
+    end
+
+    test "floors a small max-age to 60 seconds" do
+      assert KeyStore.extract_max_age([{"cache-control", "max-age=5"}], @fallback) ==
+               :timer.seconds(60)
+    end
+
+    test "caps a huge max-age at 24h" do
+      assert KeyStore.extract_max_age([{"cache-control", "max-age=999999999"}], @fallback) ==
+               :timer.seconds(86_400)
+    end
+
+    test "matches header keys case-insensitively" do
+      assert KeyStore.extract_max_age([{"Cache-Control", "max-age=600"}], @fallback) ==
+               :timer.seconds(600)
+    end
+  end
 end
