@@ -278,6 +278,67 @@ defmodule AshAuthentication.Firebase.TokenVerifierTest do
 
       assert {:ok, "user-123", _claims} = TokenVerifier.verify(token, @project_id)
     end
+
+    test "falls back to default when leeway config is a string", %{private_jwk: jwk} do
+      Application.put_env(:ash_authentication_firebase, :clock_skew_leeway_seconds, "30")
+      now = System.os_time(:second)
+
+      # 30s in the future is rejected with leeway 0 but accepted with the
+      # 60s default, proving the bad config didn't take effect.
+      token =
+        valid_claims(%{"iat" => now + 30})
+        |> sign(%{"alg" => "RS256", "kid" => @kid}, jwk)
+
+      log =
+        ExUnit.CaptureLog.capture_log(fn ->
+          assert {:ok, "user-123", _} = TokenVerifier.verify(token, @project_id)
+        end)
+
+      assert log =~ "Invalid :clock_skew_leeway_seconds"
+    end
+
+    test "falls back to default when leeway config is negative", %{private_jwk: jwk} do
+      Application.put_env(:ash_authentication_firebase, :clock_skew_leeway_seconds, -1)
+      now = System.os_time(:second)
+
+      token =
+        valid_claims(%{"iat" => now + 30})
+        |> sign(%{"alg" => "RS256", "kid" => @kid}, jwk)
+
+      log =
+        ExUnit.CaptureLog.capture_log(fn ->
+          assert {:ok, "user-123", _} = TokenVerifier.verify(token, @project_id)
+        end)
+
+      assert log =~ "Invalid :clock_skew_leeway_seconds"
+    end
+
+    test "falls back to default when leeway config exceeds the cap", %{private_jwk: jwk} do
+      Application.put_env(:ash_authentication_firebase, :clock_skew_leeway_seconds, 999)
+      now = System.os_time(:second)
+
+      token =
+        valid_claims(%{"iat" => now + 30})
+        |> sign(%{"alg" => "RS256", "kid" => @kid}, jwk)
+
+      log =
+        ExUnit.CaptureLog.capture_log(fn ->
+          assert {:ok, "user-123", _} = TokenVerifier.verify(token, @project_id)
+        end)
+
+      assert log =~ "Invalid :clock_skew_leeway_seconds"
+    end
+
+    test "accepts a value at the upper cap of 300", %{private_jwk: jwk} do
+      Application.put_env(:ash_authentication_firebase, :clock_skew_leeway_seconds, 300)
+      now = System.os_time(:second)
+
+      token =
+        valid_claims(%{"iat" => now + 250})
+        |> sign(%{"alg" => "RS256", "kid" => @kid}, jwk)
+
+      assert {:ok, "user-123", _claims} = TokenVerifier.verify(token, @project_id)
+    end
   end
 
   describe "key store not initialized" do

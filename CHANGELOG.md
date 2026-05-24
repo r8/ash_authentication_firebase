@@ -8,7 +8,7 @@
 - DSL option `require_email_verified?` (default `true`) rejecting tokens without a `true` `email_verified` claim
 - Structured errors `Errors.EmailNotVerified` and `Errors.InvalidToken` (with a `:reason` field)
 - Support for multiple Firebase strategies with different `project_id`s on one resource
-- Configurable shared Finch pool (`finch_name`) and clock-skew leeway (`clock_skew_leeway_seconds`, default 60s)
+- Configurable shared Finch pool (`finch_name`) and clock-skew leeway (`clock_skew_leeway_seconds`, default 60s, valid range 0..300)
 - Telemetry events for key-store fetches and token rejections
 - `uid` now included in the user info map; `token_input` accepts atom or string keys
 
@@ -26,6 +26,7 @@
 - Added missing key verifications and pass all token fields to the Ash resource
 - `KeyStore` now honors the `:refresh_interval` start option as the fallback when Google's response lacks a parseable `Cache-Control: max-age` header (previously the option was silently ignored)
 - `KeyStore` no longer crashes when Google's JWKS response contains a non-binary, empty, or non-PEM value — the bad entry is skipped and the remaining valid keys are loaded
+- Invalid `:clock_skew_leeway_seconds` config (non-integer, negative, or > 300) is logged and replaced with the 60s default instead of being used as-is
 
 ## [1.0.0] - 2026-05-05
 

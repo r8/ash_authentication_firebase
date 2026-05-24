@@ -10,11 +10,18 @@ defmodule AshAuthentication.Firebase.TokenVerifier do
   server. The default leeway is 60 seconds; override with:
 
       config :ash_authentication_firebase, clock_skew_leeway_seconds: 30
+
+  Valid values are integers in `0..300`. Anything outside that range — or
+  a non-integer — is logged as a warning and the default is used.
   """
+
+  require Logger
 
   alias AshAuthentication.Firebase.Errors.InvalidToken
 
   @issuer_prefix "https://securetoken.google.com/"
+  @default_clock_skew_leeway 60
+  @max_clock_skew_leeway 300
 
   @type claims :: %{optional(String.t()) => term()}
 
@@ -121,6 +128,22 @@ defmodule AshAuthentication.Firebase.TokenVerifier do
   end
 
   defp clock_skew_leeway do
-    Application.get_env(:ash_authentication_firebase, :clock_skew_leeway_seconds, 60)
+    case Application.get_env(
+           :ash_authentication_firebase,
+           :clock_skew_leeway_seconds,
+           @default_clock_skew_leeway
+         ) do
+      n when is_integer(n) and n >= 0 and n <= @max_clock_skew_leeway ->
+        n
+
+      other ->
+        Logger.warning(
+          "Invalid :clock_skew_leeway_seconds #{inspect(other)} " <>
+            "(must be an integer in 0..#{@max_clock_skew_leeway}); " <>
+            "falling back to #{@default_clock_skew_leeway}s"
+        )
+
+        @default_clock_skew_leeway
+    end
   end
 end
