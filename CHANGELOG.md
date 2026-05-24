@@ -5,7 +5,7 @@
 ### Added
 
 - Dialyzer to CI alongside `mix test`, `mix credo --strict`, and `mix format --check-formatted`
-- README "Security model" section enumerating what's verified vs. out of scope (notably token revocation) with shared pools
+- README "Security model" section enumerating what's verified vs. out of scope (notably token revocation)
 - DSL options: `registration_enabled?` (default `true`) for authenticating only pre-provisioned users, plus `sign_in_action_name` and `register_action_name` to customize the relevant actions
 - DSL option `require_email_verified?` (default `true`) rejecting tokens without a `true` `email_verified` claim
 - Structured errors `Errors.EmailNotVerified` and `Errors.InvalidToken` (with a `:reason` field)
@@ -28,6 +28,7 @@
 - Blank/non-binary secrets correctly produce `MissingSecret`; non-binary or empty token params short-circuit as missing
 - Added missing key verifications and pass all token fields to the Ash resource
 - `KeyStore` now honors the `:refresh_interval` start option as the fallback when Google's response lacks a parseable `Cache-Control: max-age` header (previously the option was silently ignored)
+- `do_sign_in/3` no longer crashes with `CaseClauseError` if `Ash.read/2` ever returns a non-exception `{:error, term}` — such errors are wrapped in `AuthenticationFailed` like other failures
 - `KeyStore` no longer crashes when Google's JWKS response contains a non-binary, empty, or non-PEM value — the bad entry is skipped and the remaining valid keys are loaded
 - Invalid `:clock_skew_leeway_seconds` config (non-integer, negative, or > 300) is logged and replaced with the 60s default instead of being used as-is
 

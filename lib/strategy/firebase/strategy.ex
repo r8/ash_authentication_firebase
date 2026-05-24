@@ -142,6 +142,18 @@ defimpl AshAuthentication.Strategy, for: AshAuthentication.Strategy.Firebase do
            strategy: strategy,
            caused_by: error
          )}
+
+      {:error, other} ->
+        {:error,
+         AuthenticationFailed.exception(
+           strategy: strategy,
+           caused_by: %{
+             module: __MODULE__,
+             strategy: strategy,
+             action: :sign_in,
+             reason: other
+           }
+         )}
     end
   end
 
