@@ -29,6 +29,8 @@ defmodule AshAuthentication.Firebase.TokenVerifier.KeyStore do
     * `:refresh_interval` — fallback interval, in milliseconds, between
       background refreshes when Google's `Cache-Control: max-age` header is
       missing or unparseable. Defaults to 30 minutes.
+    * `:url` — JWKS endpoint to fetch. Defaults to Google's public key URL;
+      overridable primarily for tests.
 
   Typically started by the library's application supervisor — host
   applications do not need to invoke this directly.
@@ -68,6 +70,7 @@ defmodule AshAuthentication.Firebase.TokenVerifier.KeyStore do
   @impl true
   def init(opts) do
     refresh_interval = Keyword.get(opts, :refresh_interval, @default_refresh_interval)
+    url = Keyword.get(opts, :url, @google_keys_url)
 
     # Restart guard: only seed the bootstrap error if no value has ever been
     # written. On a process restart, the prior {:ok, keys} keeps serving reads
@@ -82,7 +85,8 @@ defmodule AshAuthentication.Firebase.TokenVerifier.KeyStore do
       last_refresh_attempt_at: nil,
       refresh_interval: refresh_interval,
       retry_attempt: 0,
-      refresh_timer: nil
+      refresh_timer: nil,
+      url: url
     }
 
     {:ok, state, {:continue, :fetch_keys}}
@@ -123,7 +127,7 @@ defmodule AshAuthentication.Firebase.TokenVerifier.KeyStore do
   defp do_fetch_and_update(state) do
     now = System.monotonic_time(:millisecond)
 
-    case fetch_google_keys(state.refresh_interval) do
+    case fetch_google_keys(state.url, state.refresh_interval) do
       {:ok, keys, expires_in} ->
         maybe_put_keys(keys)
 
@@ -186,8 +190,8 @@ defmodule AshAuthentication.Firebase.TokenVerifier.KeyStore do
     end
   end
 
-  defp fetch_google_keys(refresh_fallback) do
-    request = Finch.build(:get, @google_keys_url, [{"accept", "application/json"}])
+  defp fetch_google_keys(url, refresh_fallback) do
+    request = Finch.build(:get, url, [{"accept", "application/json"}])
 
     case Finch.request(request, AshAuthentication.Firebase.finch_name(),
            receive_timeout: @request_timeout

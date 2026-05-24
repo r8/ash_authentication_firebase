@@ -39,7 +39,8 @@ defmodule AshAuthentication.Firebase.MixProject do
       {:telemetry, "~> 1.0"},
       {:ex_doc, ">= 0.0.0", only: :dev, runtime: false},
       {:credo, "~> 1.7", only: [:dev, :test], runtime: false},
-      {:mox, "~> 1.1", only: :test}
+      {:mox, "~> 1.1", only: :test},
+      {:bypass, "~> 2.1", only: :test}
     ]
   end
 
