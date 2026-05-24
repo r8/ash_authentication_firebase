@@ -4,5 +4,8 @@ defmodule AshAuthentication.Firebase.Errors.EmailNotVerified do
   """
   use Splode.Error, fields: [:strategy], class: :forbidden
 
+  @type t :: %__MODULE__{strategy: atom() | nil}
+
+  @spec message(t()) :: String.t()
   def message(_), do: "Firebase email is not verified"
 end

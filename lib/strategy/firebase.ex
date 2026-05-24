@@ -13,6 +13,19 @@ defmodule AshAuthentication.Strategy.Firebase do
             resource: nil,
             strategy_module: __MODULE__
 
+  @type t :: %__MODULE__{
+          __spark_metadata__: term(),
+          name: atom(),
+          project_id: {module(), Keyword.t()} | nil,
+          token_input: atom() | nil,
+          register_action_name: atom() | nil,
+          sign_in_action_name: atom() | nil,
+          registration_enabled?: boolean(),
+          require_email_verified?: boolean(),
+          resource: module() | nil,
+          strategy_module: module()
+        }
+
   alias AshAuthentication.Strategy.Firebase.{Dsl, Transformer, Verifier}
 
   use AshAuthentication.Strategy.Custom, entity: Dsl.dsl()

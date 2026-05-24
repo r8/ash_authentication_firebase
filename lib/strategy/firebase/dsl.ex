@@ -5,6 +5,15 @@ defmodule AshAuthentication.Strategy.Firebase.Dsl do
   alias AshAuthentication.Strategy.Firebase
   alias Spark.Dsl.Entity
 
+  @doc """
+  Returns the `Spark.Dsl.Entity` that describes the `firebase` DSL block.
+
+  Wired into `AshAuthentication.Strategy.Firebase` via
+  `use AshAuthentication.Strategy.Custom, entity: Dsl.dsl()`, which is how the
+  block becomes available inside the `authentication.strategies` section of a
+  resource.
+  """
+  @spec dsl() :: Entity.t()
   def dsl do
     secret_type = AshAuthentication.Dsl.secret_type()
     secret_doc = AshAuthentication.Dsl.secret_doc()

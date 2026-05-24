@@ -19,6 +19,19 @@ defmodule AshAuthentication.Firebase.TokenVerifier.KeyStore do
 
   # Client API
 
+  @doc """
+  Starts the key store GenServer and registers it under this module's name.
+
+  Options:
+
+    * `:refresh_interval` — fallback interval, in milliseconds, between
+      background refreshes when Google's `Cache-Control: max-age` header is
+      missing or unparseable. Defaults to 30 minutes.
+
+  Typically started by the library's application supervisor — host
+  applications do not need to invoke this directly.
+  """
+  @spec start_link(keyword()) :: GenServer.on_start()
   def start_link(opts \\ []) do
     GenServer.start_link(__MODULE__, opts, name: @name)
   end
@@ -28,6 +41,15 @@ defmodule AshAuthentication.Firebase.TokenVerifier.KeyStore do
     :persistent_term.get(@pt_key, {:error, :not_initialized})
   end
 
+  @doc """
+  Asynchronously queues a key refresh.
+
+  Fire-and-forget cast; returns `:ok` immediately without waiting for the
+  fetch to complete. Intended for internal use by the scheduled-refresh
+  timer — callers that need to know whether the refresh succeeded should use
+  `refresh_now/0` instead.
+  """
+  @spec refresh_keys() :: :ok
   def refresh_keys do
     GenServer.cast(@name, :refresh_keys)
   end

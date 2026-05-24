@@ -4,8 +4,16 @@ defmodule AshAuthentication.Strategy.FirebaseTest do
   import Mox
 
   alias AshAuthentication.Errors.{AuthenticationFailed, InvalidToken}
+  alias AshAuthentication.Firebase.Errors.EmailNotVerified
   alias AshAuthentication.Firebase.TokenVerifier.KeyStoreMock
-  alias AshAuthentication.Strategy.FirebaseTest.{OtherProjectUser, RegisterUser, SignInOnlyUser}
+
+  alias AshAuthentication.Strategy.FirebaseTest.{
+    BlankSecretUser,
+    OtherProjectUser,
+    RegisterUser,
+    SignInOnlyUser,
+    UnverifiedEmailUser
+  }
 
   @project_id "test-project"
   @kid "test-kid"
@@ -129,6 +137,127 @@ defmodule AshAuthentication.Strategy.FirebaseTest do
                )
 
       assert {:ok, []} = Ash.read(RegisterUser)
+    end
+  end
+
+  describe "email verification" do
+    test "rejects a token whose email_verified claim is false", %{private_jwk: jwk} do
+      claims = claims_for("uid-unverified", %{"email_verified" => false})
+      token = sign(claims, jwk)
+
+      assert {:error, %EmailNotVerified{strategy: :firebase}} =
+               AshAuthentication.Strategy.action(
+                 strategy(RegisterUser),
+                 :sign_in,
+                 %{"firebase_token" => token},
+                 []
+               )
+
+      assert {:ok, []} = Ash.read(RegisterUser)
+    end
+
+    test "accepts a token whose email_verified claim is true", %{private_jwk: jwk} do
+      token = sign(claims_for("uid-verified", %{"email_verified" => true}), jwk)
+
+      assert {:ok, user} =
+               AshAuthentication.Strategy.action(
+                 strategy(RegisterUser),
+                 :sign_in,
+                 %{"firebase_token" => token},
+                 []
+               )
+
+      assert user.uid == "uid-verified"
+    end
+
+    test "accepts a token with no email claim regardless of email_verified",
+         %{private_jwk: jwk} do
+      claims =
+        "uid-no-email"
+        |> claims_for()
+        |> Map.drop(["email", "email_verified"])
+
+      token = sign(claims, jwk)
+
+      assert {:ok, user} =
+               AshAuthentication.Strategy.action(
+                 strategy(RegisterUser),
+                 :sign_in,
+                 %{"firebase_token" => token},
+                 []
+               )
+
+      assert user.uid == "uid-no-email"
+      assert user.email == nil
+    end
+
+    test "accepts a token with email_verified: false when require_email_verified?: false",
+         %{private_jwk: jwk} do
+      claims = claims_for("uid-opt-out", %{"email_verified" => false})
+      token = sign(claims, jwk)
+
+      assert {:ok, user} =
+               AshAuthentication.Strategy.action(
+                 strategy(UnverifiedEmailUser),
+                 :sign_in,
+                 %{"firebase_token" => token},
+                 []
+               )
+
+      assert user.uid == "uid-opt-out"
+    end
+  end
+
+  describe "token input extraction" do
+    test "accepts the token when supplied under an atom key", %{private_jwk: jwk} do
+      token = sign(claims_for("uid-atom-key"), jwk)
+
+      assert {:ok, user} =
+               AshAuthentication.Strategy.action(
+                 strategy(RegisterUser),
+                 :sign_in,
+                 %{firebase_token: token},
+                 []
+               )
+
+      assert user.uid == "uid-atom-key"
+    end
+
+    test "returns InvalidToken when the params do not contain the token" do
+      assert {:error, %InvalidToken{}} =
+               AshAuthentication.Strategy.action(
+                 strategy(RegisterUser),
+                 :sign_in,
+                 %{},
+                 []
+               )
+    end
+  end
+
+  describe "project_id secret" do
+    test "returns InvalidToken when the project_id secret resolves to a blank string",
+         %{private_jwk: jwk} do
+      token = sign(claims_for("uid-blank-secret"), jwk)
+
+      assert {:error, %InvalidToken{}} =
+               AshAuthentication.Strategy.action(
+                 strategy(BlankSecretUser),
+                 :sign_in,
+                 %{"firebase_token" => token},
+                 []
+               )
+
+      assert {:ok, []} = Ash.read(BlankSecretUser)
+    end
+  end
+
+  describe "transformer defaults" do
+    test "defaults register_action_name to :register_with_<name>" do
+      assert strategy(RegisterUser).register_action_name == :register_with_firebase
+    end
+
+    test "defaults sign_in_action_name to :sign_in_with_<name>" do
+      assert strategy(SignInOnlyUser).sign_in_action_name == :sign_in_with_firebase
     end
   end
 

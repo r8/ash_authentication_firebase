@@ -19,6 +19,8 @@ defmodule AshAuthentication.Firebase do
     Application.get_env(:ash_authentication_firebase, :finch_name, @default_finch_name)
   end
 
+  @impl Application
+  @spec start(Application.start_type(), term()) :: {:ok, pid()} | {:error, term()}
   def start(_type, _args) do
     finch_children =
       case Application.get_env(:ash_authentication_firebase, :finch_name) do

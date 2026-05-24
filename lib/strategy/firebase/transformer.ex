@@ -11,6 +11,26 @@ defmodule AshAuthentication.Strategy.Firebase.Transformer do
   import AshAuthentication.Validations.Action
   import AshAuthentication.Strategy.Custom.Helpers
 
+  @doc """
+  Runs the compile-time transformation for a `firebase` strategy.
+
+  Three responsibilities:
+
+    * Fill in defaults for `register_action_name` (`:register_with_<name>`) and
+      `sign_in_action_name` (`:sign_in_with_<name>`) when they are not set
+      explicitly.
+    * Validate the action gated by `registration_enabled?` — when `true`, the
+      register action must exist and accept a non-nullable `:user_info` map
+      argument; when `false`, the same is required of the sign-in action.
+    * Register both action names with AshAuthentication so the strategy plug
+      can resolve them at runtime.
+
+  Returns `{:ok, dsl_state}` on success or `{:error, Spark.Error.DslError.t()}`
+  when validation fails. Called automatically by Spark via the strategy's
+  `transform/2` delegate; not intended to be invoked directly.
+  """
+  @spec transform(AshAuthentication.Strategy.Firebase.t(), map()) ::
+          {:ok, map()} | {:error, Spark.Error.DslError.t() | term()}
   def transform(strategy, dsl_state) do
     with strategy <- set_defaults(strategy),
          :ok <- maybe_validate_register_action(dsl_state, strategy),
