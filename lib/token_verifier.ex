@@ -45,7 +45,7 @@ defmodule AshAuthentication.Firebase.TokenVerifier do
          {:validate_iss, true} <- {:validate_iss, fields["iss"] == issuer},
          {:validate_aud, true} <- {:validate_aud, fields["aud"] == project_id},
          {:validate_sub, true} <-
-           {:validate_sub, is_binary(fields["sub"]) and byte_size(fields["sub"]) > 0},
+           {:validate_sub, is_binary(fields["sub"]) and fields["sub"] != ""},
          {:validate_exp, true} <-
            {:validate_exp, is_integer(fields["exp"]) and fields["exp"] > now},
          {:validate_iat, true} <-

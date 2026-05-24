@@ -5,6 +5,7 @@ defimpl AshAuthentication.Strategy, for: AshAuthentication.Strategy.Firebase do
   alias Ash.Changeset
   alias Ash.Resource
   alias AshAuthentication.Errors
+  alias AshAuthentication.Firebase.Errors.EmailNotVerified
   alias AshAuthentication.Firebase.TokenVerifier
 
   import AshAuthentication.Plug.Helpers, only: [store_authentication_result: 2]
@@ -42,7 +43,8 @@ defimpl AshAuthentication.Strategy, for: AshAuthentication.Strategy.Firebase do
     with {:ok, project_id} <- fetch_secret(strategy, :project_id),
          {:ok, firebase_token} <-
            get_firebase_token_from_params(params, strategy.token_input),
-         {:ok, uid, fields} <- verify_firebase_token(firebase_token, project_id) do
+         {:ok, uid, fields} <- verify_firebase_token(firebase_token, project_id),
+         :ok <- check_email_verified(strategy, fields) do
       strategy.resource
       |> Changeset.new()
       |> Changeset.set_context(%{
@@ -58,9 +60,25 @@ defimpl AshAuthentication.Strategy, for: AshAuthentication.Strategy.Firebase do
       )
       |> Ash.create(options)
     else
+      {:error, :email_not_verified} ->
+        {:error, EmailNotVerified.exception(strategy: strategy.name)}
+
       _ ->
         {:error, Errors.InvalidToken.exception(type: :sign_in)}
     end
+  end
+
+  defp check_email_verified(strategy, fields) do
+    if strategy.require_email_verified? and email_unverified?(fields) do
+      {:error, :email_not_verified}
+    else
+      :ok
+    end
+  end
+
+  defp email_unverified?(fields) do
+    is_binary(fields["email"]) and fields["email"] != "" and
+      fields["email_verified"] != true
   end
 
   defp verify_firebase_token(token, project_id) do

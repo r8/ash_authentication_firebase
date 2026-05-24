@@ -7,6 +7,7 @@ defmodule AshAuthentication.Strategy.Firebase do
             project_id: nil,
             token_input: nil,
             register_action_name: nil,
+            require_email_verified?: true,
             resource: nil,
             strategy_module: __MODULE__
 

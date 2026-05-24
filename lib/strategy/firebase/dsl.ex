@@ -53,6 +53,20 @@ defmodule AshAuthentication.Strategy.Firebase.Dsl do
           `register_with_#{name}`.
           """,
           required: false
+        ],
+        require_email_verified?: [
+          type: :boolean,
+          doc: """
+          When true (default), reject Firebase tokens whose `email` claim is
+          present but `email_verified` is not `true`. Tokens without an `email`
+          claim (phone-auth, anonymous) are unaffected.
+
+          Set to `false` only if you have an alternative verification flow —
+          disabling this allows an attacker to register an account with a
+          victim's email and receive an `email_verified: false` token that
+          your app would otherwise honor.
+          """,
+          default: true
         ]
       ]
     }
