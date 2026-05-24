@@ -155,6 +155,35 @@ defmodule AshAuthentication.Firebase.TokenVerifier.KeyStoreIntegrationTest do
       assert state.refresh_timer
     end
 
+    test "non-200 error reason is truncated at 500 chars", %{bypass: bypass, url: url} do
+      huge_body = String.duplicate("x", 5_000)
+
+      Bypass.expect(bypass, "GET", "/keys", fn conn ->
+        Plug.Conn.resp(conn, 500, huge_body)
+      end)
+
+      test_pid = self()
+      handler_id = "fbtest-truncate-#{System.unique_integer([:positive])}"
+
+      :telemetry.attach(
+        handler_id,
+        [:ash_authentication_firebase, :key_store, :fetch_failed],
+        fn _event, _measurements, metadata, _ ->
+          send(test_pid, {:fetch_failed, metadata})
+        end,
+        nil
+      )
+
+      on_exit(fn -> :telemetry.detach(handler_id) end)
+
+      start_keystore(url: url)
+
+      assert_receive {:fetch_failed, %{reason: reason}}
+      assert is_binary(reason)
+      # "HTTP 500: " is 10 chars, plus up to 500 chars of body = 510 max.
+      assert byte_size(reason) <= 510
+    end
+
     test "ECONNREFUSED leaves persistent_term at :not_initialized and schedules retry",
          %{bypass: bypass, url: url} do
       Bypass.down(bypass)

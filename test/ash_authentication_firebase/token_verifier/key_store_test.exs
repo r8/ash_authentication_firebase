@@ -97,5 +97,13 @@ defmodule AshAuthentication.Firebase.TokenVerifier.KeyStoreTest do
       assert KeyStore.extract_max_age([{"Cache-Control", "max-age=600"}], @fallback) ==
                :timer.seconds(600)
     end
+
+    test "matches max-age directive case-insensitively" do
+      assert KeyStore.extract_max_age([{"cache-control", "Max-Age=600"}], @fallback) ==
+               :timer.seconds(600)
+
+      assert KeyStore.extract_max_age([{"cache-control", "MAX-AGE=600"}], @fallback) ==
+               :timer.seconds(600)
+    end
   end
 end

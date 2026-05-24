@@ -206,7 +206,7 @@ defmodule AshAuthentication.Firebase.TokenVerifier.KeyStore do
         end
 
       {:ok, %{status: status, body: body}} ->
-        {:error, "HTTP #{status}: #{body}"}
+        {:error, "HTTP #{status}: #{String.slice(to_string(body), 0, 500)}"}
 
       {:error, %Mint.TransportError{reason: :timeout}} ->
         {:error, :timeout}
@@ -251,7 +251,7 @@ defmodule AshAuthentication.Firebase.TokenVerifier.KeyStore do
     |> Enum.find(fn {key, _} -> String.downcase(to_string(key)) == "cache-control" end)
     |> case do
       {_, value} ->
-        case Regex.run(~r/max-age="?(\d+)"?/, to_string(value)) do
+        case Regex.run(~r/max-age="?(\d+)"?/i, to_string(value)) do
           [_, seconds] ->
             seconds
             |> String.to_integer()
