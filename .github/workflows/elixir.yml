@@ -28,7 +28,9 @@ jobs:
         uses: actions/cache@v5
         with:
           path: ./deps
-          key: ${{ runner.os }}-mix-${{ hashFiles('**/mix.lock') }}
+          # mix.lock is gitignored for this library, so we key on mix.exs
+          # instead — the cache busts intentionally when declared deps change.
+          key: ${{ runner.os }}-mix-${{ hashFiles('mix.exs') }}
           restore-keys: ${{ runner.os }}-mix-
       - name: Install dependencies
         run: mix deps.get
@@ -55,13 +57,15 @@ jobs:
         uses: actions/cache@v5
         with:
           path: ./deps
-          key: ${{ runner.os }}-mix-${{ hashFiles('**/mix.lock') }}
+          # mix.lock is gitignored for this library, so we key on mix.exs
+          # instead — the cache busts intentionally when declared deps change.
+          key: ${{ runner.os }}-mix-${{ hashFiles('mix.exs') }}
           restore-keys: ${{ runner.os }}-mix-
       - name: Restore Dialyzer PLT cache
         uses: actions/cache@v5
         with:
           path: ./priv/plts
-          key: ${{ runner.os }}-plt-${{ steps.beam.outputs.elixir-version }}-${{ steps.beam.outputs.otp-version }}-${{ hashFiles('**/mix.lock', 'mix.exs') }}
+          key: ${{ runner.os }}-plt-${{ steps.beam.outputs.elixir-version }}-${{ steps.beam.outputs.otp-version }}-${{ hashFiles('mix.exs') }}
           restore-keys: |
             ${{ runner.os }}-plt-${{ steps.beam.outputs.elixir-version }}-${{ steps.beam.outputs.otp-version }}-
       - name: Install dependencies
