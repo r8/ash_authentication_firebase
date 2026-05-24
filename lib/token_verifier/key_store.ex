@@ -11,9 +11,9 @@ defmodule AshAuthentication.Firebase.TokenVerifier.KeyStore do
   @default_refresh_interval :timer.minutes(30)
   @initial_retry :timer.seconds(1)
   @max_retry :timer.minutes(5)
-  @max_retry_attempt 20
   @name __MODULE__
   @finch_name AshAuthentication.Firebase.Finch
+  @telemetry_prefix [:ash_authentication_firebase, :key_store]
 
   # Client API
 
@@ -50,19 +50,36 @@ defmodule AshAuthentication.Firebase.TokenVerifier.KeyStore do
   def handle_continue(:fetch_keys, state) do
     case fetch_google_keys() do
       {:ok, keys, expires_in} ->
+        :telemetry.execute(
+          @telemetry_prefix ++ [:fetched],
+          %{
+            retry_attempt: state.retry_attempt,
+            keys_count: map_size(keys),
+            expires_in: expires_in
+          },
+          %{}
+        )
+
         schedule_refresh(expires_in)
         {:noreply, %{state | keys: keys, last_refresh: DateTime.utc_now(), retry_attempt: 0}}
 
       {:error, reason} ->
         delay = backoff_delay(state.retry_attempt)
+        next_attempt = state.retry_attempt + 1
 
         Logger.error(
           "Failed to fetch Firebase public keys: #{inspect(reason)}; " <>
-            "retrying in #{delay}ms (attempt #{state.retry_attempt + 1})"
+            "retrying in #{delay}ms (attempt #{next_attempt})"
+        )
+
+        :telemetry.execute(
+          @telemetry_prefix ++ [:fetch_failed],
+          %{retry_attempt: next_attempt, delay: delay},
+          %{reason: reason}
         )
 
         schedule_refresh(delay)
-        {:noreply, %{state | retry_attempt: state.retry_attempt + 1}}
+        {:noreply, %{state | retry_attempt: next_attempt}}
     end
   end
 
@@ -153,8 +170,10 @@ defmodule AshAuthentication.Firebase.TokenVerifier.KeyStore do
   end
 
   defp backoff_delay(attempt) do
-    capped_attempt = min(attempt, @max_retry_attempt)
-    capped = min(@initial_retry * Bitwise.bsl(1, capped_attempt), @max_retry)
+    # 1s << 9 ≈ 8.5min already exceeds @max_retry (5min), so further shifts are no-ops.
+    # Cap the shift to keep Bitwise.bsl bounded as attempt grows during sustained outages.
+    shift = min(attempt, 9)
+    capped = min(@initial_retry * Bitwise.bsl(1, shift), @max_retry)
     :rand.uniform(capped)
   end
 end
