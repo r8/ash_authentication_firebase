@@ -14,6 +14,7 @@ defmodule AshAuthentication.Firebase.TokenVerifier.KeyStore do
   @request_timeout :timer.seconds(10)
   @name __MODULE__
   @telemetry_prefix [:ash_authentication_firebase, :key_store]
+  @pt_key {__MODULE__, :keys}
 
   # Client API
 
@@ -23,7 +24,7 @@ defmodule AshAuthentication.Firebase.TokenVerifier.KeyStore do
 
   @impl AshAuthentication.Firebase.TokenVerifier.KeyStoreBehaviour
   def get_keys do
-    GenServer.call(@name, :get_keys)
+    :persistent_term.get(@pt_key, {:error, :not_initialized})
   end
 
   def refresh_keys do
@@ -36,8 +37,15 @@ defmodule AshAuthentication.Firebase.TokenVerifier.KeyStore do
   def init(opts) do
     refresh_interval = Keyword.get(opts, :refresh_interval, @default_refresh_interval)
 
+    # Restart guard: only seed the bootstrap error if no value has ever been
+    # written. On a process restart, the prior {:ok, keys} keeps serving reads
+    # until the new fetch completes.
+    case :persistent_term.get(@pt_key, :__absent__) do
+      :__absent__ -> :persistent_term.put(@pt_key, {:error, :not_initialized})
+      _ -> :ok
+    end
+
     state = %{
-      keys: %{},
       last_refresh: nil,
       refresh_interval: refresh_interval,
       retry_attempt: 0
@@ -50,6 +58,8 @@ defmodule AshAuthentication.Firebase.TokenVerifier.KeyStore do
   def handle_continue(:fetch_keys, state) do
     case fetch_google_keys() do
       {:ok, keys, expires_in} ->
+        maybe_put_keys(keys)
+
         :telemetry.execute(
           @telemetry_prefix ++ [:fetched],
           %{
@@ -61,7 +71,7 @@ defmodule AshAuthentication.Firebase.TokenVerifier.KeyStore do
         )
 
         schedule_refresh(expires_in)
-        {:noreply, %{state | keys: keys, last_refresh: DateTime.utc_now(), retry_attempt: 0}}
+        {:noreply, %{state | last_refresh: DateTime.utc_now(), retry_attempt: 0}}
 
       {:error, reason} ->
         delay = backoff_delay(state.retry_attempt)
@@ -84,11 +94,6 @@ defmodule AshAuthentication.Firebase.TokenVerifier.KeyStore do
   end
 
   @impl true
-  def handle_call(:get_keys, _from, %{keys: keys} = state) do
-    {:reply, {:ok, keys}, state}
-  end
-
-  @impl true
   def handle_cast(:refresh_keys, state) do
     {:noreply, state, {:continue, :fetch_keys}}
   end
@@ -99,6 +104,15 @@ defmodule AshAuthentication.Firebase.TokenVerifier.KeyStore do
   end
 
   # Private Functions
+
+  defp maybe_put_keys(keys) do
+    new = {:ok, keys}
+
+    case :persistent_term.get(@pt_key, :__absent__) do
+      ^new -> :ok
+      _ -> :persistent_term.put(@pt_key, new)
+    end
+  end
 
   defp fetch_google_keys do
     request = Finch.build(:get, @google_keys_url, [{"accept", "application/json"}])
