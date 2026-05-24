@@ -122,7 +122,7 @@ defmodule AshAuthentication.Firebase.TokenVerifier.KeyStore do
   defp do_fetch_and_update(state) do
     now = System.monotonic_time(:millisecond)
 
-    case fetch_google_keys() do
+    case fetch_google_keys(state.refresh_interval) do
       {:ok, keys, expires_in} ->
         maybe_put_keys(keys)
 
@@ -185,7 +185,7 @@ defmodule AshAuthentication.Firebase.TokenVerifier.KeyStore do
     end
   end
 
-  defp fetch_google_keys do
+  defp fetch_google_keys(refresh_fallback) do
     request = Finch.build(:get, @google_keys_url, [{"accept", "application/json"}])
 
     case Finch.request(request, AshAuthentication.Firebase.finch_name(),
@@ -194,7 +194,7 @@ defmodule AshAuthentication.Firebase.TokenVerifier.KeyStore do
       {:ok, %{status: 200, headers: headers, body: body}} ->
         with {:ok, json_data} <- Jason.decode(body),
              {:ok, keys} <- convert_to_jose_keys(json_data),
-             expires_in <- extract_max_age(headers) do
+             expires_in <- extract_max_age(headers, refresh_fallback) do
           {:ok, keys, expires_in}
         end
 
@@ -230,18 +230,18 @@ defmodule AshAuthentication.Firebase.TokenVerifier.KeyStore do
 
   defp convert_to_jose_keys(_), do: {:error, :invalid_key_response}
 
-  defp extract_max_age(headers) do
+  defp extract_max_age(headers, fallback) do
     headers
     |> Enum.find(fn {key, _} -> String.downcase(to_string(key)) == "cache-control" end)
     |> case do
       {_, value} ->
         case Regex.run(~r/max-age="?(\d+)"?/, to_string(value)) do
           [_, seconds] -> :timer.seconds(min(String.to_integer(seconds), @max_age_seconds))
-          nil -> @default_refresh_interval
+          nil -> fallback
         end
 
       nil ->
-        @default_refresh_interval
+        fallback
     end
   end
 

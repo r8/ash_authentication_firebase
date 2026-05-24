@@ -24,6 +24,7 @@
 - `TokenVerifier.verify/2` no longer crashes on key-store errors, non-binary/empty token or `project_id` arguments, or malformed payloads — these now surface as clean error tuples (`:key_not_found`, `:malformed_payload`, etc.)
 - Blank/non-binary secrets correctly produce `MissingSecret`; non-binary or empty token params short-circuit as missing
 - Added missing key verifications and pass all token fields to the Ash resource
+- `KeyStore` now honors the `:refresh_interval` start option as the fallback when Google's response lacks a parseable `Cache-Control: max-age` header (previously the option was silently ignored)
 
 ## [1.0.0] - 2026-05-05
 
