@@ -5,4 +5,6 @@ defmodule AshAuthentication.Firebase.TokenVerifier.KeyStoreBehaviour do
 
   @callback get_keys() ::
               {:ok, %{optional(String.t()) => JOSE.JWK.t()}} | {:error, term()}
+
+  @callback refresh_now() :: :ok | {:error, term()}
 end

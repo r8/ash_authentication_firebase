@@ -36,9 +36,8 @@ defmodule AshAuthentication.Firebase.TokenVerifier do
 
     with {:jwt_header, %JOSE.JWS{alg: {_, :RS256}, fields: %{"kid" => kid}}} <-
            peek_token_kid(token),
-         # read key from store
-         {:ok, keys} <- key_store().get_keys(),
-         {:ok, %JOSE.JWK{} = key} <- get_public_key(keys, kid),
+         # read key from store, with one sync refresh-on-miss to handle key rotation
+         {:ok, %JOSE.JWK{} = key} <- get_public_key_or_refresh(kid),
          # check if verify returns true
          {:verify, {true, %{fields: fields}, _}} <-
            {:verify, JOSE.JWT.verify_strict(key, ["RS256"], token)},
@@ -67,10 +66,30 @@ defmodule AshAuthentication.Firebase.TokenVerifier do
     end
   end
 
-  defp get_public_key(keys, key_id) do
-    case Map.get(keys, key_id) do
-      nil -> {:error, :key_not_found}
-      jwk -> {:ok, jwk}
+  defp get_public_key_or_refresh(kid) do
+    case lookup_key(kid) do
+      {:ok, jwk} ->
+        {:ok, jwk}
+
+      {:error, :key_not_found} ->
+        _ = key_store().refresh_now()
+        lookup_key(kid)
+
+      other ->
+        other
+    end
+  end
+
+  defp lookup_key(kid) do
+    case key_store().get_keys() do
+      {:ok, keys} ->
+        case Map.fetch(keys, kid) do
+          {:ok, jwk} -> {:ok, jwk}
+          :error -> {:error, :key_not_found}
+        end
+
+      error ->
+        error
     end
   end
 

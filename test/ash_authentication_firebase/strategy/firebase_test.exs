@@ -21,6 +21,7 @@ defmodule AshAuthentication.Strategy.FirebaseTest do
 
   setup %{public_jwk: public_jwk} do
     stub(KeyStoreMock, :get_keys, fn -> {:ok, %{@kid => public_jwk}} end)
+    stub(KeyStoreMock, :refresh_now, fn -> :ok end)
     :ok
   end
 

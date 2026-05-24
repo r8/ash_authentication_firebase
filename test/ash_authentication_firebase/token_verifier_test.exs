@@ -26,6 +26,7 @@ defmodule AshAuthentication.Firebase.TokenVerifierTest do
 
   setup %{public_jwk: public_jwk} do
     stub(KeyStoreMock, :get_keys, fn -> {:ok, %{@kid => public_jwk}} end)
+    stub(KeyStoreMock, :refresh_now, fn -> :ok end)
     :ok
   end
 
@@ -169,7 +170,46 @@ defmodule AshAuthentication.Firebase.TokenVerifierTest do
 
     test "propagates :key_not_found when KeyStore returns no matching key",
          %{private_jwk: jwk} do
-      expect(KeyStoreMock, :get_keys, fn -> {:ok, %{}} end)
+      # get_keys is called twice: initial miss + retry after refresh_now
+      expect(KeyStoreMock, :get_keys, 2, fn -> {:ok, %{}} end)
+      expect(KeyStoreMock, :refresh_now, fn -> :ok end)
+      token = sign(valid_claims(), %{"alg" => "RS256", "kid" => @kid}, jwk)
+      assert {:error, :key_not_found} = TokenVerifier.verify(token, @project_id)
+    end
+  end
+
+  describe "unknown kid" do
+    test "synchronously refreshes the key store and recovers a valid token",
+         %{private_jwk: jwk, public_jwk: public_jwk} do
+      {:ok, agent} = Agent.start_link(fn -> 0 end)
+
+      expect(KeyStoreMock, :get_keys, 2, fn ->
+        case Agent.get_and_update(agent, &{&1, &1 + 1}) do
+          0 -> {:ok, %{}}
+          _ -> {:ok, %{@kid => public_jwk}}
+        end
+      end)
+
+      expect(KeyStoreMock, :refresh_now, fn -> :ok end)
+
+      token = sign(valid_claims(), %{"alg" => "RS256", "kid" => @kid}, jwk)
+
+      assert {:ok, "user-123", _claims} = TokenVerifier.verify(token, @project_id)
+    end
+
+    test "returns :key_not_found when the refresh does not add the missing kid",
+         %{private_jwk: jwk} do
+      expect(KeyStoreMock, :get_keys, 2, fn -> {:ok, %{}} end)
+      expect(KeyStoreMock, :refresh_now, fn -> :ok end)
+
+      token = sign(valid_claims(), %{"alg" => "RS256", "kid" => @kid}, jwk)
+      assert {:error, :key_not_found} = TokenVerifier.verify(token, @project_id)
+    end
+
+    test "returns :key_not_found when the refresh itself fails", %{private_jwk: jwk} do
+      expect(KeyStoreMock, :get_keys, 2, fn -> {:ok, %{}} end)
+      expect(KeyStoreMock, :refresh_now, fn -> {:error, :timeout} end)
+
       token = sign(valid_claims(), %{"alg" => "RS256", "kid" => @kid}, jwk)
       assert {:error, :key_not_found} = TokenVerifier.verify(token, @project_id)
     end

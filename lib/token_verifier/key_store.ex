@@ -12,6 +12,7 @@ defmodule AshAuthentication.Firebase.TokenVerifier.KeyStore do
   @initial_retry :timer.seconds(1)
   @max_retry :timer.minutes(5)
   @request_timeout :timer.seconds(10)
+  @refresh_min_interval :timer.seconds(10)
   @name __MODULE__
   @telemetry_prefix [:ash_authentication_firebase, :key_store]
   @pt_key {__MODULE__, :keys}
@@ -31,6 +32,13 @@ defmodule AshAuthentication.Firebase.TokenVerifier.KeyStore do
     GenServer.cast(@name, :refresh_keys)
   end
 
+  @impl AshAuthentication.Firebase.TokenVerifier.KeyStoreBehaviour
+  def refresh_now do
+    GenServer.call(@name, :refresh_now, @request_timeout + :timer.seconds(2))
+  catch
+    :exit, {:timeout, _} -> {:error, :timeout}
+  end
+
   # Server Callbacks
 
   @impl true
@@ -47,8 +55,10 @@ defmodule AshAuthentication.Firebase.TokenVerifier.KeyStore do
 
     state = %{
       last_refresh: nil,
+      last_refresh_attempt_at: nil,
       refresh_interval: refresh_interval,
-      retry_attempt: 0
+      retry_attempt: 0,
+      refresh_timer: nil
     }
 
     {:ok, state, {:continue, :fetch_keys}}
@@ -56,6 +66,39 @@ defmodule AshAuthentication.Firebase.TokenVerifier.KeyStore do
 
   @impl true
   def handle_continue(:fetch_keys, state) do
+    {_result, new_state} = do_fetch_and_update(state)
+    {:noreply, new_state}
+  end
+
+  @impl true
+  def handle_cast(:refresh_keys, state) do
+    {:noreply, state, {:continue, :fetch_keys}}
+  end
+
+  @impl true
+  def handle_info(:refresh_keys, state) do
+    {:noreply, state, {:continue, :fetch_keys}}
+  end
+
+  @impl true
+  def handle_call(:refresh_now, _from, state) do
+    if recent_attempt?(state) do
+      {:reply, :ok, state}
+    else
+      {result, new_state} = do_fetch_and_update(state)
+      {:reply, result, new_state}
+    end
+  end
+
+  defp recent_attempt?(%{last_refresh_attempt_at: nil}), do: false
+
+  defp recent_attempt?(%{last_refresh_attempt_at: at}) do
+    System.monotonic_time(:millisecond) - at < @refresh_min_interval
+  end
+
+  defp do_fetch_and_update(state) do
+    now = System.monotonic_time(:millisecond)
+
     case fetch_google_keys() do
       {:ok, keys, expires_in} ->
         maybe_put_keys(keys)
@@ -70,10 +113,18 @@ defmodule AshAuthentication.Firebase.TokenVerifier.KeyStore do
           %{}
         )
 
-        schedule_refresh(expires_in)
-        {:noreply, %{state | last_refresh: DateTime.utc_now(), retry_attempt: 0}}
+        new_timer = reschedule_refresh(state.refresh_timer, expires_in)
 
-      {:error, reason} ->
+        {:ok,
+         %{
+           state
+           | last_refresh: DateTime.utc_now(),
+             last_refresh_attempt_at: now,
+             retry_attempt: 0,
+             refresh_timer: new_timer
+         }}
+
+      {:error, reason} = error ->
         delay = backoff_delay(state.retry_attempt)
         next_attempt = state.retry_attempt + 1
 
@@ -88,19 +139,16 @@ defmodule AshAuthentication.Firebase.TokenVerifier.KeyStore do
           %{reason: reason}
         )
 
-        schedule_refresh(delay)
-        {:noreply, %{state | retry_attempt: next_attempt}}
+        new_timer = reschedule_refresh(state.refresh_timer, delay)
+
+        {error,
+         %{
+           state
+           | last_refresh_attempt_at: now,
+             retry_attempt: next_attempt,
+             refresh_timer: new_timer
+         }}
     end
-  end
-
-  @impl true
-  def handle_cast(:refresh_keys, state) do
-    {:noreply, state, {:continue, :fetch_keys}}
-  end
-
-  @impl true
-  def handle_info(:refresh_keys, state) do
-    {:noreply, state, {:continue, :fetch_keys}}
   end
 
   # Private Functions
@@ -172,8 +220,27 @@ defmodule AshAuthentication.Firebase.TokenVerifier.KeyStore do
     end
   end
 
-  defp schedule_refresh(interval) do
+  defp reschedule_refresh(prev_timer, interval) do
+    cancel_pending_timer(prev_timer)
     Process.send_after(self(), :refresh_keys, interval)
+  end
+
+  defp cancel_pending_timer(nil), do: :ok
+
+  defp cancel_pending_timer(ref) do
+    case Process.cancel_timer(ref) do
+      false ->
+        # Timer already fired; drain the message if it's still in the mailbox
+        # so we don't double-fetch.
+        receive do
+          :refresh_keys -> :ok
+        after
+          0 -> :ok
+        end
+
+      _remaining_ms ->
+        :ok
+    end
   end
 
   defp backoff_delay(attempt) do

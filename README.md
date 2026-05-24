@@ -121,6 +121,10 @@ config :ash_authentication_firebase, finch_name: MyApp.Finch
 
 When this is set, the library will not start its own Finch pool and will route all key-fetch requests through the configured one. Ensure `MyApp.Finch` is started by your host application's supervision tree before `:ash_authentication_firebase` starts.
 
+## Handling Google key rotation
+
+When a token arrives with a `kid` that is not in cache (typically right after Google rotates signing keys), the verifier triggers one synchronous `KeyStore` refresh and retries the lookup before failing. Concurrent misses coalesce into a single network fetch via a short recency window, so a burst of unknown-`kid` tokens cannot stampede the upstream endpoint.
+
 ## Acknowledgements
 
 Inspired by [ExFirebaseAuth](https://github.com/Nickforall/ExFirebaseAuth).
