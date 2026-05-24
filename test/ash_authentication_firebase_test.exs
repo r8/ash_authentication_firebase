@@ -15,5 +15,15 @@ defmodule AshAuthenticationFirebaseTest do
 
       assert Process.whereis(AshAuthentication.Firebase.TokenVerifier.KeyStore) == nil
     end
+
+    test "the bundled Finch pool is also not started when a custom :key_store is configured" do
+      # The Finch pool exists only to serve the bundled KeyStore, so a host
+      # that supplies its own key_store has no use for it. Note that integration
+      # tests start their own Finch in setup; this test runs before those.
+      assert Application.get_env(:ash_authentication_firebase, :key_store) ==
+               AshAuthentication.Firebase.TokenVerifier.KeyStoreMock
+
+      assert Process.whereis(AshAuthentication.Firebase.Finch) == nil
+    end
   end
 end

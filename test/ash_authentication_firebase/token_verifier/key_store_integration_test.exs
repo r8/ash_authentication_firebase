@@ -11,6 +11,10 @@ defmodule AshAuthentication.Firebase.TokenVerifier.KeyStoreIntegrationTest do
     # Clean up :persistent_term between tests so prior keys do not leak in.
     :persistent_term.erase(@pt_key)
 
+    # Test env runs with the mock key_store, so the application does not start
+    # the bundled Finch pool — start it here for the duration of the test.
+    start_supervised!({Finch, name: AshAuthentication.Firebase.Finch})
+
     bypass = Bypass.open()
     url = "http://localhost:#{bypass.port}/keys"
 

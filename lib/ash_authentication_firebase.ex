@@ -10,7 +10,7 @@ defmodule AshAuthentication.Firebase do
   @impl Application
   @spec start(Application.start_type(), term()) :: {:ok, pid()} | {:error, term()}
   def start(_type, _args) do
-    key_store_children =
+    children =
       case Application.get_env(
              :ash_authentication_firebase,
              :key_store,
@@ -18,6 +18,7 @@ defmodule AshAuthentication.Firebase do
            ) do
         AshAuthentication.Firebase.TokenVerifier.KeyStore ->
           [
+            {Finch, name: @finch_name},
             {AshAuthentication.Firebase.TokenVerifier.KeyStore,
              name: AshAuthentication.Firebase.TokenVerifier.KeyStore}
           ]
@@ -25,8 +26,6 @@ defmodule AshAuthentication.Firebase do
         _ ->
           []
       end
-
-    children = [{Finch, name: @finch_name}] ++ key_store_children
 
     opts = [strategy: :one_for_one, name: AshAuthentication.Firebase.Supervisor]
     Supervisor.start_link(children, opts)

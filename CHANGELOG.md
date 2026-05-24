@@ -20,7 +20,7 @@
 - Key store now reads from `:persistent_term` (lock-free) and refreshes synchronously on a key miss, so the first request after a key rotation no longer fails
 - Key-fetch failures retry with jittered exponential backoff (capped at 5 min); refresh debounce shortened to 1s
 - Hardened JWKS handling: regex-based `max-age` parsing (floored at 60s and clamped to 24h), validated response shape, and stricter `project_id` secret validation
-- Bundled `KeyStore` no longer starts when a custom `:key_store` is configured
+- Bundled `KeyStore` no longer starts when a custom `:key_store` is configured; the bundled Finch pool is now gated on the same condition (previously it was started unconditionally)
 
 ### Fixed
 
