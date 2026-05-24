@@ -42,7 +42,7 @@ defimpl AshAuthentication.Strategy, for: AshAuthentication.Strategy.Firebase do
     with {:ok, project_id} <- fetch_secret(strategy, :project_id),
          {:ok, firebase_token} <-
            get_firebase_token_from_params(params, strategy.token_input),
-         {:ok, _token, fields} <- verify_firebase_token(firebase_token, project_id) do
+         {:ok, uid, fields} <- verify_firebase_token(firebase_token, project_id) do
       strategy.resource
       |> Changeset.new()
       |> Changeset.set_context(%{
@@ -50,7 +50,9 @@ defimpl AshAuthentication.Strategy, for: AshAuthentication.Strategy.Firebase do
           ash_authentication?: true
         }
       })
-      |> Changeset.for_create(strategy.register_action_name, %{user_info: fields},
+      |> Changeset.for_create(
+        strategy.register_action_name,
+        %{user_info: build_user_info(fields, uid)},
         upsert?: true,
         upsert_identity: action.upsert_identity
       )
@@ -86,5 +88,10 @@ defimpl AshAuthentication.Strategy, for: AshAuthentication.Strategy.Firebase do
       _ ->
         {:error, Errors.MissingSecret.exception(path: path, resource: strategy.resource)}
     end
+  end
+
+  defp build_user_info(fields, uid) do
+    fields
+    |> Map.put("uid", uid)
   end
 end
