@@ -23,6 +23,8 @@
 - Synchronous key-store refresh on key miss so the first request after a key rotation no longer fails
 - Exponential retry backoff with jitter on key-fetch failures, capped at 5 minutes
 - `Cache-Control: max-age` parsing is now regex-based and tolerates quoted values
+- `Cache-Control: max-age` values are now clamped to 24 hours to defend `Process.send_after` against pathological upstream values
+- The JWKS HTTP response shape is now validated — a non-map JSON body fails as `:invalid_key_response` instead of raising
 - Stricter `project_id` secret validation — blank/empty values are treated as missing
 - KeyStore `refresh_now/0` debounce shortened from 10s to 1s so a token with a freshly rotated `kid` arriving shortly after a prior refresh can still recover
 - The application supervisor no longer starts the bundled `KeyStore` when a custom `:key_store` implementation is configured — tests and hosts supplying their own implementation are no longer surprised by background HTTP requests to Google

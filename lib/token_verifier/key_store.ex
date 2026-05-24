@@ -13,6 +13,7 @@ defmodule AshAuthentication.Firebase.TokenVerifier.KeyStore do
   @max_retry :timer.minutes(5)
   @request_timeout :timer.seconds(10)
   @refresh_min_interval :timer.seconds(1)
+  @max_age_seconds 86_400
   @name __MODULE__
   @telemetry_prefix [:ash_authentication_firebase, :key_store]
   @pt_key {__MODULE__, :keys}
@@ -208,7 +209,7 @@ defmodule AshAuthentication.Firebase.TokenVerifier.KeyStore do
     end
   end
 
-  defp convert_to_jose_keys(json_data) do
+  defp convert_to_jose_keys(json_data) when is_map(json_data) do
     keys =
       json_data
       |> Enum.map(fn {key, value} ->
@@ -227,13 +228,15 @@ defmodule AshAuthentication.Firebase.TokenVerifier.KeyStore do
     end
   end
 
+  defp convert_to_jose_keys(_), do: {:error, :invalid_key_response}
+
   defp extract_max_age(headers) do
     headers
     |> Enum.find(fn {key, _} -> String.downcase(to_string(key)) == "cache-control" end)
     |> case do
       {_, value} ->
         case Regex.run(~r/max-age="?(\d+)"?/, to_string(value)) do
-          [_, seconds] -> :timer.seconds(String.to_integer(seconds))
+          [_, seconds] -> :timer.seconds(min(String.to_integer(seconds), @max_age_seconds))
           nil -> @default_refresh_interval
         end
 
