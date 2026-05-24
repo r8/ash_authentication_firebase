@@ -233,12 +233,15 @@ defmodule AshAuthentication.Firebase.TokenVerifierTest do
   describe "clock skew leeway" do
     setup do
       previous = Application.get_env(:ash_authentication_firebase, :clock_skew_leeway_seconds)
+      TokenVerifier.__reset_clock_skew_cache__()
 
       on_exit(fn ->
         case previous do
           nil -> Application.delete_env(:ash_authentication_firebase, :clock_skew_leeway_seconds)
           v -> Application.put_env(:ash_authentication_firebase, :clock_skew_leeway_seconds, v)
         end
+
+        TokenVerifier.__reset_clock_skew_cache__()
       end)
 
       :ok
@@ -338,6 +341,29 @@ defmodule AshAuthentication.Firebase.TokenVerifierTest do
         |> sign(%{"alg" => "RS256", "kid" => @kid}, jwk)
 
       assert {:ok, "user-123", _claims} = TokenVerifier.verify(token, @project_id)
+    end
+
+    test "invalid config logs once across many verify calls", %{private_jwk: jwk} do
+      Application.put_env(:ash_authentication_firebase, :clock_skew_leeway_seconds, "thirty")
+      now = System.os_time(:second)
+
+      token =
+        valid_claims(%{"iat" => now + 30})
+        |> sign(%{"alg" => "RS256", "kid" => @kid}, jwk)
+
+      log =
+        ExUnit.CaptureLog.capture_log(fn ->
+          for _ <- 1..10, do: assert({:ok, _, _} = TokenVerifier.verify(token, @project_id))
+        end)
+
+      # The cache means we resolve+log only on the first call, not all ten.
+      occurrences =
+        log
+        |> String.split("Invalid :clock_skew_leeway_seconds")
+        |> length()
+        |> Kernel.-(1)
+
+      assert occurrences == 1
     end
   end
 

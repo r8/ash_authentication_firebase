@@ -22,6 +22,7 @@ defmodule AshAuthentication.Firebase.TokenVerifier do
   @issuer_prefix "https://securetoken.google.com/"
   @default_clock_skew_leeway 60
   @max_clock_skew_leeway 300
+  @clock_skew_cache_key {__MODULE__, :clock_skew_leeway}
 
   @type claims :: %{optional(String.t()) => term()}
 
@@ -128,6 +129,18 @@ defmodule AshAuthentication.Firebase.TokenVerifier do
   end
 
   defp clock_skew_leeway do
+    case :persistent_term.get(@clock_skew_cache_key, :__absent__) do
+      :__absent__ ->
+        value = resolve_clock_skew_leeway()
+        :persistent_term.put(@clock_skew_cache_key, value)
+        value
+
+      cached ->
+        cached
+    end
+  end
+
+  defp resolve_clock_skew_leeway do
     case Application.get_env(
            :ash_authentication_firebase,
            :clock_skew_leeway_seconds,
@@ -145,5 +158,12 @@ defmodule AshAuthentication.Firebase.TokenVerifier do
 
         @default_clock_skew_leeway
     end
+  end
+
+  @doc false
+  # For tests that change :clock_skew_leeway_seconds at runtime.
+  def __reset_clock_skew_cache__ do
+    :persistent_term.erase(@clock_skew_cache_key)
+    :ok
   end
 end

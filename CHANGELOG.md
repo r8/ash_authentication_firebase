@@ -33,7 +33,7 @@
 - `do_sign_in/3` no longer crashes with `CaseClauseError` if `Ash.read/2` ever returns a non-exception `{:error, term}` — such errors are wrapped in `AuthenticationFailed` like other failures
 - `KeyStore.refresh_now/0` now catches all `:exit` reasons (`:noproc`, `:killed`, etc.), not just `:timeout`, returning `{:error, :not_started}` or `{:error, {:key_store_exit, reason}}` instead of crashing the caller on the token-verify hot path
 - `KeyStore` no longer crashes when Google's JWKS response contains a non-binary, empty, or non-PEM value — the bad entry is skipped and the remaining valid keys are loaded
-- Invalid `:clock_skew_leeway_seconds` config (non-integer, negative, or > 300) is logged and replaced with the 60s default instead of being used as-is
+- Invalid `:clock_skew_leeway_seconds` config (non-integer, negative, or > 300) is logged and replaced with the 60s default instead of being used as-is; the resolved value is now cached in `:persistent_term` so an invalid config only logs once per VM lifetime instead of on every verify call
 
 ## [1.0.0] - 2026-05-05
 
