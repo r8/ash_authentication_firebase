@@ -51,8 +51,37 @@ defmodule AshAuthentication.Strategy.Firebase.Dsl do
 
           The default is computed from the strategy name eg:
           `register_with_#{name}`.
+
+          Only used when `registration_enabled?` is `true`.
           """,
           required: false
+        ],
+        sign_in_action_name: [
+          type: :atom,
+          doc: ~S"""
+          The name of the action to use to sign in an existing user.
+
+          The default is computed from the strategy name eg:
+          `sign_in_with_#{name}`.
+
+          Only used when `registration_enabled?` is `false`. The action must be
+          a read action that accepts a `:user_info` map argument and returns at
+          most one user (typically by filtering on the `uid` claim).
+          """,
+          required: false
+        ],
+        registration_enabled?: [
+          type: :boolean,
+          doc: """
+          When `true` (default), every successful token verification invokes
+          the configured `register_action_name` as an upsert. When `false`,
+          invokes `sign_in_action_name` as a read; an unknown token subject
+          fails with `AuthenticationFailed` instead of creating a user.
+
+          Set to `false` if users are provisioned out-of-band and the Firebase
+          strategy should only authenticate existing accounts.
+          """,
+          default: true
         ],
         require_email_verified?: [
           type: :boolean,

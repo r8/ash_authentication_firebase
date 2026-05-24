@@ -2,9 +2,9 @@ defimpl AshAuthentication.Strategy, for: AshAuthentication.Strategy.Firebase do
   @moduledoc """
   Authentication protocol implementation for firebase strategies.
   """
-  alias Ash.Changeset
-  alias Ash.Resource
+  alias Ash.{Changeset, Query, Resource}
   alias AshAuthentication.Errors
+  alias AshAuthentication.Errors.AuthenticationFailed
   alias AshAuthentication.Firebase.Errors.EmailNotVerified
   alias AshAuthentication.Firebase.TokenVerifier
 
@@ -38,33 +38,96 @@ defimpl AshAuthentication.Strategy, for: AshAuthentication.Strategy.Firebase do
   end
 
   def action(strategy, :sign_in, params, options) do
-    action = Resource.Info.action(strategy.resource, strategy.register_action_name, :create)
-
     with {:ok, project_id} <- fetch_secret(strategy, :project_id),
          {:ok, firebase_token} <-
            get_firebase_token_from_params(params, strategy.token_input),
          {:ok, uid, fields} <- verify_firebase_token(firebase_token, project_id),
          :ok <- check_email_verified(strategy, fields) do
-      strategy.resource
-      |> Changeset.new()
-      |> Changeset.set_context(%{
-        private: %{
-          ash_authentication?: true
-        }
-      })
-      |> Changeset.for_create(
-        strategy.register_action_name,
-        %{user_info: build_user_info(fields, uid)},
-        upsert?: true,
-        upsert_identity: action.upsert_identity
-      )
-      |> Ash.create(options)
+      user_info = build_user_info(fields, uid)
+
+      if strategy.registration_enabled? do
+        do_register(strategy, user_info, options)
+      else
+        do_sign_in(strategy, user_info, options)
+      end
     else
       {:error, :email_not_verified} ->
         {:error, EmailNotVerified.exception(strategy: strategy.name)}
 
+      {:error, %AuthenticationFailed{} = error} ->
+        {:error, error}
+
       _ ->
         {:error, Errors.InvalidToken.exception(type: :sign_in)}
+    end
+  end
+
+  defp do_register(strategy, user_info, options) do
+    action = Resource.Info.action(strategy.resource, strategy.register_action_name, :create)
+
+    strategy.resource
+    |> Changeset.new()
+    |> Changeset.set_context(%{
+      private: %{
+        ash_authentication?: true
+      }
+    })
+    |> Changeset.for_create(
+      strategy.register_action_name,
+      %{user_info: user_info},
+      upsert?: true,
+      upsert_identity: action.upsert_identity
+    )
+    |> Ash.create(options)
+  end
+
+  defp do_sign_in(strategy, user_info, options) do
+    strategy.resource
+    |> Query.new()
+    |> Query.set_context(%{
+      private: %{
+        ash_authentication?: true
+      }
+    })
+    |> Query.for_read(strategy.sign_in_action_name, %{user_info: user_info})
+    |> Ash.read(options)
+    |> case do
+      {:ok, [user]} ->
+        {:ok, user}
+
+      {:ok, []} ->
+        {:error,
+         AuthenticationFailed.exception(
+           strategy: strategy,
+           caused_by: %{
+             module: __MODULE__,
+             strategy: strategy,
+             action: :sign_in,
+             message: "Query returned no users"
+           }
+         )}
+
+      {:ok, _users} ->
+        {:error,
+         AuthenticationFailed.exception(
+           strategy: strategy,
+           caused_by: %{
+             module: __MODULE__,
+             strategy: strategy,
+             action: :sign_in,
+             message: "Query returned too many users"
+           }
+         )}
+
+      {:error, %AuthenticationFailed{} = error} ->
+        {:error, error}
+
+      {:error, error} when is_exception(error) ->
+        {:error,
+         AuthenticationFailed.exception(
+           strategy: strategy,
+           caused_by: error
+         )}
     end
   end
 
