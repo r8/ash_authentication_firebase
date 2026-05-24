@@ -9,6 +9,8 @@ defmodule AshAuthentication.Strategy.FirebaseTest do
 
   alias AshAuthentication.Strategy.FirebaseTest.{
     BlankSecretUser,
+    FunctionSecretUser,
+    ModuleSecretUser,
     OtherProjectUser,
     RegisterUser,
     SignInOnlyUser,
@@ -248,6 +250,36 @@ defmodule AshAuthentication.Strategy.FirebaseTest do
                )
 
       assert {:ok, []} = Ash.read(BlankSecretUser)
+    end
+
+    test "sign-in succeeds when project_id is a Secret module returning the value",
+         %{private_jwk: jwk} do
+      token = sign(claims_for("uid-module-secret"), jwk)
+
+      assert {:ok, user} =
+               AshAuthentication.Strategy.action(
+                 strategy(ModuleSecretUser),
+                 :sign_in,
+                 %{"firebase_token" => token},
+                 []
+               )
+
+      assert user.uid == "uid-module-secret"
+    end
+
+    test "sign-in succeeds when project_id is an anonymous function returning the value",
+         %{private_jwk: jwk} do
+      token = sign(claims_for("uid-function-secret"), jwk)
+
+      assert {:ok, user} =
+               AshAuthentication.Strategy.action(
+                 strategy(FunctionSecretUser),
+                 :sign_in,
+                 %{"firebase_token" => token},
+                 []
+               )
+
+      assert user.uid == "uid-function-secret"
     end
   end
 

@@ -220,6 +220,116 @@ defmodule AshAuthentication.Strategy.FirebaseTest.BlankSecretUser do
   end
 end
 
+defmodule AshAuthentication.Strategy.FirebaseTest.SuccessSecret do
+  @moduledoc false
+  use AshAuthentication.Secret
+
+  @impl true
+  def secret_for(_path, _resource, _opts, _context), do: {:ok, "test-project"}
+end
+
+defmodule AshAuthentication.Strategy.FirebaseTest.ModuleSecretUser do
+  @moduledoc false
+  use Ash.Resource,
+    domain: AshAuthentication.Strategy.FirebaseTest.TestDomain,
+    data_layer: Ash.DataLayer.Ets,
+    extensions: [AshAuthentication, AshAuthentication.Strategy.Firebase]
+
+  ets do
+    private?(true)
+  end
+
+  attributes do
+    uuid_primary_key(:id)
+    attribute(:uid, :string, public?: true, allow_nil?: false)
+    attribute(:email, :string, public?: true)
+  end
+
+  identities do
+    identity(:unique_uid, [:uid],
+      pre_check_with: AshAuthentication.Strategy.FirebaseTest.TestDomain
+    )
+  end
+
+  actions do
+    defaults([:read])
+
+    create :register_with_firebase do
+      argument(:user_info, :map, allow_nil?: false)
+      upsert?(true)
+      upsert_identity(:unique_uid)
+
+      change(fn changeset, _ ->
+        info = Ash.Changeset.get_argument(changeset, :user_info)
+
+        changeset
+        |> Ash.Changeset.change_attribute(:uid, info["uid"])
+        |> Ash.Changeset.change_attribute(:email, info["email"])
+      end)
+    end
+  end
+
+  authentication do
+    strategies do
+      firebase do
+        project_id(AshAuthentication.Strategy.FirebaseTest.SuccessSecret)
+        token_input(:firebase_token)
+      end
+    end
+  end
+end
+
+defmodule AshAuthentication.Strategy.FirebaseTest.FunctionSecretUser do
+  @moduledoc false
+  use Ash.Resource,
+    domain: AshAuthentication.Strategy.FirebaseTest.TestDomain,
+    data_layer: Ash.DataLayer.Ets,
+    extensions: [AshAuthentication, AshAuthentication.Strategy.Firebase]
+
+  ets do
+    private?(true)
+  end
+
+  attributes do
+    uuid_primary_key(:id)
+    attribute(:uid, :string, public?: true, allow_nil?: false)
+    attribute(:email, :string, public?: true)
+  end
+
+  identities do
+    identity(:unique_uid, [:uid],
+      pre_check_with: AshAuthentication.Strategy.FirebaseTest.TestDomain
+    )
+  end
+
+  actions do
+    defaults([:read])
+
+    create :register_with_firebase do
+      argument(:user_info, :map, allow_nil?: false)
+      upsert?(true)
+      upsert_identity(:unique_uid)
+
+      change(fn changeset, _ ->
+        info = Ash.Changeset.get_argument(changeset, :user_info)
+
+        changeset
+        |> Ash.Changeset.change_attribute(:uid, info["uid"])
+        |> Ash.Changeset.change_attribute(:email, info["email"])
+      end)
+    end
+  end
+
+  authentication do
+    strategies do
+      firebase do
+        project_id(fn _path, _resource -> {:ok, "test-project"} end)
+        token_input(:firebase_token)
+      end
+    end
+  end
+end
+
 defmodule AshAuthentication.Strategy.FirebaseTest.SignInOnlyUser do
   @moduledoc false
   use Ash.Resource,
