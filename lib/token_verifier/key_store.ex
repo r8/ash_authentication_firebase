@@ -148,21 +148,9 @@ defmodule AshAuthentication.Firebase.TokenVerifier.KeyStore do
     |> Enum.find(fn {key, _} -> String.downcase(to_string(key)) == "cache-control" end)
     |> case do
       {_, value} ->
-        value
-        |> to_string()
-        |> String.split(",")
-        |> Enum.find(&String.contains?(&1, "max-age="))
-        |> case do
-          nil ->
-            @default_refresh_interval
-
-          directive ->
-            directive
-            |> String.trim()
-            |> String.split("=")
-            |> List.last()
-            |> String.to_integer()
-            |> :timer.seconds()
+        case Regex.run(~r/max-age="?(\d+)"?/, to_string(value)) do
+          [_, seconds] -> :timer.seconds(String.to_integer(seconds))
+          nil -> @default_refresh_interval
         end
 
       nil ->
