@@ -12,7 +12,7 @@ defmodule AshAuthentication.Firebase.TokenVerifier.KeyStore do
   @initial_retry :timer.seconds(1)
   @max_retry :timer.minutes(5)
   @request_timeout :timer.seconds(10)
-  @refresh_min_interval :timer.seconds(10)
+  @refresh_min_interval :timer.seconds(1)
   @name __MODULE__
   @telemetry_prefix [:ash_authentication_firebase, :key_store]
   @pt_key {__MODULE__, :keys}

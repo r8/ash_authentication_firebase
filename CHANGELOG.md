@@ -24,6 +24,7 @@
 - Exponential retry backoff with jitter on key-fetch failures, capped at 5 minutes
 - `Cache-Control: max-age` parsing is now regex-based and tolerates quoted values
 - Stricter `project_id` secret validation — blank/empty values are treated as missing
+- KeyStore `refresh_now/0` debounce shortened from 10s to 1s so a token with a freshly rotated `kid` arriving shortly after a prior refresh can still recover
 - The application supervisor no longer starts the bundled `KeyStore` when a custom `:key_store` implementation is configured — tests and hosts supplying their own implementation are no longer surprised by background HTTP requests to Google
 
 ### Fixed
