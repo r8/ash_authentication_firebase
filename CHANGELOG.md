@@ -31,6 +31,8 @@
 - `TokenVerifier.verify/2` no longer crashes when the key store returns `:not_initialized` or any other error — it now refreshes once and falls back to `:key_not_found` cleanly
 - `TokenVerifier.verify/2` no longer raises a `FunctionClauseError` on non-binary / empty-string token or `project_id` arguments
 - `JOSE.JWT.verify_strict/3` exceptions on malformed payloads are now caught and surfaced as `:malformed_payload`
+- Blank/non-binary resolved secrets now correctly produce `MissingSecret` instead of silently passing through the `project_id` guard
+- `firebase_token` params that are present but non-binary or empty no longer reach the verifier; they short-circuit as a missing token
 
 ## [1.0.0] - 2026-05-05
 

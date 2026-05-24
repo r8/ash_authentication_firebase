@@ -167,8 +167,8 @@ defimpl AshAuthentication.Strategy, for: AshAuthentication.Strategy.Firebase do
 
   defp get_firebase_token_from_params(params, token_input) do
     case Map.get(params, token_input) || Map.get(params, Atom.to_string(token_input)) do
-      nil -> :error
-      token -> {:ok, token}
+      token when is_binary(token) and token != "" -> {:ok, token}
+      _ -> {:error, :missing_token}
     end
   end
 
@@ -186,7 +186,7 @@ defimpl AshAuthentication.Strategy, for: AshAuthentication.Strategy.Firebase do
            ) do
       {:ok, secret}
     else
-      {:ok, secret} ->
+      {:ok, secret} when is_binary(secret) and byte_size(secret) > 0 ->
         {:ok, secret}
 
       _ ->
