@@ -105,6 +105,20 @@ config :ash_authentication_firebase, finch_name: MyApp.Finch
 
 When this is set, the library will not start its own Finch pool and will route all key-fetch requests through the configured one. Ensure `MyApp.Finch` is started by your host application's supervision tree before `:ash_authentication_firebase` starts.
 
+## Telemetry
+
+The library emits the following `:telemetry` events. Attach handlers to pipe them into your observability stack of choice (Prometheus, StatsD, etc.).
+
+| Event | Measurements | Metadata |
+| --- | --- | --- |
+| `[:ash_authentication_firebase, :key_store, :fetched]` | `%{retry_attempt, keys_count, expires_in}` | `%{}` |
+| `[:ash_authentication_firebase, :key_store, :fetch_failed]` | `%{retry_attempt, delay}` | `%{reason}` |
+| `[:ash_authentication_firebase, :strategy, :token_rejected]` | `%{count: 1}` | `%{reason, strategy}` |
+
+- `:fetched` fires after a successful refresh of Google's public keys. `expires_in` is the milliseconds until the next scheduled refresh derived from the response's `Cache-Control: max-age`. `retry_attempt` reports how many failed attempts preceded this success (`0` on the happy path).
+- `:fetch_failed` fires whenever a key fetch fails. `delay` is the milliseconds until the next retry; `reason` is the underlying error (a `Mint.TransportError`, an HTTP status string, `:timeout`, `:no_valid_keys`, `:invalid_key_response`, etc.).
+- `:token_rejected` fires when token verification fails at the strategy boundary. `reason` is one of the values listed in `AshAuthentication.Firebase.Errors.InvalidToken`'s `t:reason/0` type (e.g. `:invalid_signature`, `:expired`, `:invalid_audience`); `strategy` is the strategy name configured in the DSL.
+
 ## Acknowledgements
 
 Inspired by [ExFirebaseAuth](https://github.com/Nickforall/ExFirebaseAuth).
