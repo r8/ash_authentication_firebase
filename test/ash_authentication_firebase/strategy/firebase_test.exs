@@ -425,6 +425,38 @@ defmodule AshAuthentication.Strategy.FirebaseTest do
       end
     end
 
+    test "rejects a sign-in action whose type is not :read" do
+      assert_raise Spark.Error.DslError, ~r/type/, fn ->
+        defmodule SignInWrongTypeResource do
+          use Ash.Resource,
+            domain: AshAuthentication.Strategy.FirebaseTest.TestDomain,
+            data_layer: Ash.DataLayer.Ets,
+            extensions: [AshAuthentication, AshAuthentication.Strategy.Firebase]
+
+          attributes do
+            uuid_primary_key(:id)
+            attribute(:uid, :string, public?: true, allow_nil?: false)
+          end
+
+          actions do
+            create :sign_in_with_firebase do
+              argument(:user_info, :map, allow_nil?: false)
+            end
+          end
+
+          authentication do
+            strategies do
+              firebase do
+                project_id("test-project")
+                token_input(:firebase_token)
+                registration_enabled?(false)
+              end
+            end
+          end
+        end
+      end
+    end
+
     test "rejects a register action whose type is not :create" do
       assert_raise Spark.Error.DslError, ~r/type/, fn ->
         defmodule RegisterWrongTypeResource do

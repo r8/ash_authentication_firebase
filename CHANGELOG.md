@@ -17,6 +17,7 @@
 ### Changed
 
 - Register action is now validated at compile time: it must be a `:create` action with `upsert?: true` and an `upsert_identity` set, so repeat sign-ins update the existing user instead of creating duplicates
+- Sign-in action (in `registration_enabled?(false)` mode) is now validated at compile time to be a `:read` action; misconfiguring it as a `:create` is a `DslError` instead of a runtime crash
 - Key store now reads from `:persistent_term` (lock-free) and refreshes synchronously on a key miss, so the first request after a key rotation no longer fails
 - Key-fetch failures retry with jittered exponential backoff (capped at 5 min); refresh debounce shortened to 1s
 - Hardened JWKS handling: regex-based `max-age` parsing (floored at 60s and clamped to 24h), validated response shape, and stricter `project_id` secret validation
