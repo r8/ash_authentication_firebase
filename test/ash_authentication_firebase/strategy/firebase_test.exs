@@ -350,6 +350,112 @@ defmodule AshAuthentication.Strategy.FirebaseTest do
         end
       end
     end
+
+    test "rejects a register action that does not set upsert?" do
+      assert_raise Spark.Error.DslError, ~r/upsert\?/, fn ->
+        defmodule RegisterMissingUpsertResource do
+          use Ash.Resource,
+            domain: AshAuthentication.Strategy.FirebaseTest.TestDomain,
+            data_layer: Ash.DataLayer.Ets,
+            extensions: [AshAuthentication, AshAuthentication.Strategy.Firebase]
+
+          attributes do
+            uuid_primary_key(:id)
+            attribute(:uid, :string, public?: true, allow_nil?: false)
+          end
+
+          identities do
+            identity(:unique_uid, [:uid],
+              pre_check_with: AshAuthentication.Strategy.FirebaseTest.TestDomain
+            )
+          end
+
+          actions do
+            defaults([:read])
+
+            create :register_with_firebase do
+              argument(:user_info, :map, allow_nil?: false)
+              upsert_identity(:unique_uid)
+            end
+          end
+
+          authentication do
+            strategies do
+              firebase do
+                project_id("test-project")
+                token_input(:firebase_token)
+              end
+            end
+          end
+        end
+      end
+    end
+
+    test "rejects a register action that does not set upsert_identity" do
+      assert_raise Spark.Error.DslError, ~r/upsert_identity/, fn ->
+        defmodule RegisterMissingUpsertIdentityResource do
+          use Ash.Resource,
+            domain: AshAuthentication.Strategy.FirebaseTest.TestDomain,
+            data_layer: Ash.DataLayer.Ets,
+            extensions: [AshAuthentication, AshAuthentication.Strategy.Firebase]
+
+          attributes do
+            uuid_primary_key(:id)
+            attribute(:uid, :string, public?: true, allow_nil?: false)
+          end
+
+          actions do
+            defaults([:read])
+
+            create :register_with_firebase do
+              argument(:user_info, :map, allow_nil?: false)
+              upsert?(true)
+            end
+          end
+
+          authentication do
+            strategies do
+              firebase do
+                project_id("test-project")
+                token_input(:firebase_token)
+              end
+            end
+          end
+        end
+      end
+    end
+
+    test "rejects a register action whose type is not :create" do
+      assert_raise Spark.Error.DslError, ~r/type/, fn ->
+        defmodule RegisterWrongTypeResource do
+          use Ash.Resource,
+            domain: AshAuthentication.Strategy.FirebaseTest.TestDomain,
+            data_layer: Ash.DataLayer.Ets,
+            extensions: [AshAuthentication, AshAuthentication.Strategy.Firebase]
+
+          attributes do
+            uuid_primary_key(:id)
+            attribute(:uid, :string, public?: true, allow_nil?: false)
+          end
+
+          actions do
+            read :register_with_firebase do
+              get?(true)
+              argument(:user_info, :map, allow_nil?: false)
+            end
+          end
+
+          authentication do
+            strategies do
+              firebase do
+                project_id("test-project")
+                token_input(:firebase_token)
+              end
+            end
+          end
+        end
+      end
+    end
   end
 
   defp strategy(resource), do: AshAuthentication.Info.strategy!(resource, :firebase)

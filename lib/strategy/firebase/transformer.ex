@@ -20,8 +20,11 @@ defmodule AshAuthentication.Strategy.Firebase.Transformer do
       `sign_in_action_name` (`:sign_in_with_<name>`) when they are not set
       explicitly.
     * Validate the action gated by `registration_enabled?` — when `true`, the
-      register action must exist and accept a non-nullable `:user_info` map
-      argument; when `false`, the same is required of the sign-in action.
+      register action must be a `:create` action with a non-nullable
+      `:user_info` map argument and `upsert?: true` plus an `upsert_identity`,
+      so repeat sign-ins update the existing user rather than creating
+      duplicates. When `false`, the sign-in action is checked for the same
+      `:user_info` shape.
     * Register both action names with AshAuthentication so the strategy plug
       can resolve them at runtime.
 
@@ -71,9 +74,18 @@ defmodule AshAuthentication.Strategy.Firebase.Transformer do
 
   defp maybe_validate_register_action(dsl_state, strategy) when strategy.registration_enabled? do
     with {:ok, action} <- validate_action_exists(dsl_state, strategy.register_action_name),
+         :ok <- validate_field_in_values(action, :type, [:create]),
          :ok <- validate_action_has_argument(action, :user_info),
          :ok <- validate_action_argument_option(action, :user_info, :type, [Type.Map, :map]),
-         :ok <- validate_action_argument_option(action, :user_info, :allow_nil?, [false]) do
+         :ok <- validate_action_argument_option(action, :user_info, :allow_nil?, [false]),
+         :ok <- validate_field_in_values(action, :upsert?, [true]),
+         :ok <-
+           validate_field_with(
+             action,
+             :upsert_identity,
+             &(is_atom(&1) and not is_falsy(&1)),
+             "must set `upsert_identity` so repeat sign-ins update the existing user instead of creating duplicates"
+           ) do
       :ok
     else
       {:error, reason} when is_binary(reason) ->
