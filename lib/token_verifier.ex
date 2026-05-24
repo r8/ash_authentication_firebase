@@ -18,20 +18,17 @@ defmodule AshAuthentication.Firebase.TokenVerifier do
   whose `:reason` field describes the specific failure (see
   `t:AshAuthentication.Firebase.Errors.InvalidToken.reason/0`).
   """
-  @spec verify(String.t() | nil, String.t() | nil) ::
+  @spec verify(term(), term()) ::
           {:ok, sub :: String.t(), claims()} | {:error, InvalidToken.t()}
-  def verify(nil, _project_id), do: error(:invalid_token)
-  def verify(_token, nil), do: error(:invalid_project_id)
-
-  def verify(token, project_id) when is_binary(token) and is_binary(project_id) do
+  def verify(token, project_id)
+      when is_binary(token) and is_binary(project_id) and token != "" and project_id != "" do
     issuer = @issuer_prefix <> project_id
     now = System.os_time(:second)
 
     with {:jwt_header, %JOSE.JWS{alg: {_, :RS256}, fields: %{"kid" => kid}}} <-
            peek_token_kid(token),
          {:ok, %JOSE.JWK{} = key} <- get_public_key_or_refresh(kid),
-         {:verify, {true, %{fields: fields}, _}} <-
-           {:verify, JOSE.JWT.verify_strict(key, ["RS256"], token)},
+         {:verify, {true, %{fields: fields}, _}} <- verify_jwt(key, token),
          {:validate_iss, true} <- {:validate_iss, fields["iss"] == issuer},
          {:validate_aud, true} <- {:validate_aud, fields["aud"] == project_id},
          {:validate_sub, true} <-
@@ -53,9 +50,15 @@ defmodule AshAuthentication.Firebase.TokenVerifier do
       {:validate_exp, _} -> error(:expired)
       {:validate_iat, _} -> error(:invalid_iat)
       {:validate_auth, _} -> error(:invalid_auth_time)
-      {:error, :key_not_found} -> error(:key_not_found)
+      {:error, _} -> error(:key_not_found)
     end
   end
+
+  def verify(_token, project_id) when not is_binary(project_id) or project_id == "" do
+    error(:invalid_project_id)
+  end
+
+  def verify(_token, _project_id), do: error(:invalid_token)
 
   defp error(reason), do: {:error, InvalidToken.exception(reason: reason)}
 
@@ -64,12 +67,13 @@ defmodule AshAuthentication.Firebase.TokenVerifier do
       {:ok, jwk} ->
         {:ok, jwk}
 
-      {:error, :key_not_found} ->
+      {:error, _} ->
         _ = key_store().refresh_now()
-        lookup_key(kid)
 
-      other ->
-        other
+        case lookup_key(kid) do
+          {:ok, jwk} -> {:ok, jwk}
+          {:error, _} -> {:error, :key_not_found}
+        end
     end
   end
 
@@ -90,6 +94,12 @@ defmodule AshAuthentication.Firebase.TokenVerifier do
     {:jwt_header, JOSE.JWT.peek_protected(token_string)}
   rescue
     _ -> {:jwt_header, :invalid}
+  end
+
+  defp verify_jwt(key, token) do
+    {:verify, JOSE.JWT.verify_strict(key, ["RS256"], token)}
+  rescue
+    _ -> {:verify, :malformed}
   end
 
   defp key_store do

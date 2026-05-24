@@ -28,6 +28,9 @@
 
 - Add missing verifications for Firebase keys
 - Pass all token fields to Ash Resource
+- `TokenVerifier.verify/2` no longer crashes when the key store returns `:not_initialized` or any other error — it now refreshes once and falls back to `:key_not_found` cleanly
+- `TokenVerifier.verify/2` no longer raises a `FunctionClauseError` on non-binary / empty-string token or `project_id` arguments
+- `JOSE.JWT.verify_strict/3` exceptions on malformed payloads are now caught and surfaced as `:malformed_payload`
 
 ## [1.0.0] - 2026-05-05
 

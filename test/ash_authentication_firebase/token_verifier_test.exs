@@ -42,6 +42,26 @@ defmodule AshAuthentication.Firebase.TokenVerifierTest do
                TokenVerifier.verify("token", nil)
     end
 
+    test "returns :invalid_project_id when project_id is non-binary" do
+      assert {:error, %InvalidToken{reason: :invalid_project_id}} =
+               TokenVerifier.verify("token", 123)
+    end
+
+    test "returns :invalid_project_id when project_id is an empty string" do
+      assert {:error, %InvalidToken{reason: :invalid_project_id}} =
+               TokenVerifier.verify("token", "")
+    end
+
+    test "returns :invalid_token when token is non-binary" do
+      assert {:error, %InvalidToken{reason: :invalid_token}} =
+               TokenVerifier.verify(123, @project_id)
+    end
+
+    test "returns :invalid_token when token is an empty string" do
+      assert {:error, %InvalidToken{reason: :invalid_token}} =
+               TokenVerifier.verify("", @project_id)
+    end
+
     test "returns :invalid_header for non-JWT garbage" do
       assert {:error, %InvalidToken{reason: :invalid_header}} =
                TokenVerifier.verify("not-a-jwt", @project_id)
@@ -207,6 +227,48 @@ defmodule AshAuthentication.Firebase.TokenVerifierTest do
     test "the returned InvalidToken struct renders its reason in the exception message" do
       assert {:error, %InvalidToken{} = error} = TokenVerifier.verify(nil, "p")
       assert Exception.message(error) == "Firebase token verification failed: invalid_token"
+    end
+  end
+
+  describe "key store not initialized" do
+    test "refreshes and recovers when get_keys returns :not_initialized first",
+         %{private_jwk: jwk, public_jwk: public_jwk} do
+      {:ok, agent} = Agent.start_link(fn -> 0 end)
+
+      expect(KeyStoreMock, :get_keys, 2, fn ->
+        case Agent.get_and_update(agent, &{&1, &1 + 1}) do
+          0 -> {:error, :not_initialized}
+          _ -> {:ok, %{@kid => public_jwk}}
+        end
+      end)
+
+      expect(KeyStoreMock, :refresh_now, fn -> :ok end)
+
+      token = sign(valid_claims(), %{"alg" => "RS256", "kid" => @kid}, jwk)
+
+      assert {:ok, "user-123", _claims} = TokenVerifier.verify(token, @project_id)
+    end
+
+    test "returns :key_not_found when refresh fails and key remains uninitialized",
+         %{private_jwk: jwk} do
+      expect(KeyStoreMock, :get_keys, 2, fn -> {:error, :not_initialized} end)
+      expect(KeyStoreMock, :refresh_now, fn -> {:error, :timeout} end)
+
+      token = sign(valid_claims(), %{"alg" => "RS256", "kid" => @kid}, jwk)
+
+      assert {:error, %InvalidToken{reason: :key_not_found}} =
+               TokenVerifier.verify(token, @project_id)
+    end
+  end
+
+  describe "malformed payload" do
+    test "returns :malformed_payload when verify_strict raises", %{private_jwk: jwk} do
+      valid = sign(valid_claims(), %{"alg" => "RS256", "kid" => @kid}, jwk)
+      [header, _payload, sig] = String.split(valid, ".")
+      mangled = Enum.join([header, "!!!not-base64!!!", sig], ".")
+
+      assert {:error, %InvalidToken{reason: :malformed_payload}} =
+               TokenVerifier.verify(mangled, @project_id)
     end
   end
 
