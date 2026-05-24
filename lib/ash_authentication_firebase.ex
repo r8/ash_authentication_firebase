@@ -28,12 +28,23 @@ defmodule AshAuthentication.Firebase do
         _ -> []
       end
 
-    children =
-      finch_children ++
-        [
-          {AshAuthentication.Firebase.TokenVerifier.KeyStore,
-           name: AshAuthentication.Firebase.TokenVerifier.KeyStore}
-        ]
+    key_store_children =
+      case Application.get_env(
+             :ash_authentication_firebase,
+             :key_store,
+             AshAuthentication.Firebase.TokenVerifier.KeyStore
+           ) do
+        AshAuthentication.Firebase.TokenVerifier.KeyStore ->
+          [
+            {AshAuthentication.Firebase.TokenVerifier.KeyStore,
+             name: AshAuthentication.Firebase.TokenVerifier.KeyStore}
+          ]
+
+        _ ->
+          []
+      end
+
+    children = finch_children ++ key_store_children
 
     opts = [strategy: :one_for_one, name: AshAuthentication.Firebase.Supervisor]
     Supervisor.start_link(children, opts)
