@@ -5,12 +5,13 @@ defimpl AshAuthentication.Strategy, for: AshAuthentication.Strategy.Firebase do
   alias Ash.{Changeset, Query, Resource}
   alias AshAuthentication.Errors
   alias AshAuthentication.Errors.AuthenticationFailed
-  alias AshAuthentication.Firebase.Errors.EmailNotVerified
+  alias AshAuthentication.Firebase.Errors.{EmailNotVerified, InvalidToken}
   alias AshAuthentication.Firebase.TokenVerifier
 
   import AshAuthentication.Plug.Helpers, only: [store_authentication_result: 2]
 
   require Ash.Query
+  require Logger
 
   def name(strategy), do: strategy.name
 
@@ -56,6 +57,20 @@ defimpl AshAuthentication.Strategy, for: AshAuthentication.Strategy.Firebase do
 
       {:error, %AuthenticationFailed{} = error} ->
         {:error, error}
+
+      {:error, %InvalidToken{reason: reason}} ->
+        Logger.debug("Firebase token rejected",
+          reason: reason,
+          strategy: strategy.name
+        )
+
+        :telemetry.execute(
+          [:ash_authentication_firebase, :strategy, :token_rejected],
+          %{count: 1},
+          %{reason: reason, strategy: strategy.name}
+        )
+
+        {:error, Errors.InvalidToken.exception(type: :sign_in)}
 
       _ ->
         {:error, Errors.InvalidToken.exception(type: :sign_in)}

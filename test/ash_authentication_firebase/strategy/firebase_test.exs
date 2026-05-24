@@ -251,6 +251,38 @@ defmodule AshAuthentication.Strategy.FirebaseTest do
     end
   end
 
+  describe "telemetry" do
+    test "emits :token_rejected with the verifier reason when a token is rejected",
+         %{private_jwk: jwk} do
+      handler_id = "fbtest-#{System.unique_integer([:positive])}"
+      test_pid = self()
+
+      :telemetry.attach(
+        handler_id,
+        [:ash_authentication_firebase, :strategy, :token_rejected],
+        fn _event, measurements, metadata, _ ->
+          send(test_pid, {:telemetry, measurements, metadata})
+        end,
+        nil
+      )
+
+      on_exit(fn -> :telemetry.detach(handler_id) end)
+
+      token = sign(claims_for("uid-bad-iss", "other-test-project", %{}), jwk)
+
+      assert {:error, %InvalidToken{}} =
+               AshAuthentication.Strategy.action(
+                 strategy(RegisterUser),
+                 :sign_in,
+                 %{"firebase_token" => token},
+                 []
+               )
+
+      assert_receive {:telemetry, %{count: 1},
+                      %{reason: :invalid_issuer, strategy: :firebase}}
+    end
+  end
+
   describe "transformer defaults" do
     test "defaults register_action_name to :register_with_<name>" do
       assert strategy(RegisterUser).register_action_name == :register_with_firebase

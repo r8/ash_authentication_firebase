@@ -4,31 +4,24 @@ defmodule AshAuthentication.Firebase.TokenVerifier do
   Implements all security checks as per Firebase Auth documentation.
   """
 
+  alias AshAuthentication.Firebase.Errors.InvalidToken
+
   @issuer_prefix "https://securetoken.google.com/"
 
   @type claims :: %{optional(String.t()) => term()}
-  @type error_reason ::
-          :invalid_token
-          | :invalid_project_id
-          | :invalid_header
-          | :key_not_found
-          | :invalid_signature
-          | :malformed_payload
-          | :invalid_issuer
-          | :invalid_audience
-          | :expired
-          | :invalid_sub
-          | :invalid_iat
-          | :invalid_auth_time
-
-  @spec verify(String.t() | nil, String.t() | nil) ::
-          {:ok, sub :: String.t(), claims()} | {:error, error_reason()}
 
   @doc """
   Verifies a Firebase ID token against the provided project ID.
+
+  On success returns `{:ok, sub, claims}` where `sub` is the Firebase user id.
+  On failure returns `{:error, AshAuthentication.Firebase.Errors.InvalidToken.t()}`
+  whose `:reason` field describes the specific failure (see
+  `t:AshAuthentication.Firebase.Errors.InvalidToken.reason/0`).
   """
-  def verify(nil, _project_id), do: {:error, :invalid_token}
-  def verify(_token, nil), do: {:error, :invalid_project_id}
+  @spec verify(String.t() | nil, String.t() | nil) ::
+          {:ok, sub :: String.t(), claims()} | {:error, InvalidToken.t()}
+  def verify(nil, _project_id), do: error(:invalid_token)
+  def verify(_token, nil), do: error(:invalid_project_id)
 
   def verify(token, project_id) when is_binary(token) and is_binary(project_id) do
     issuer = @issuer_prefix <> project_id
@@ -53,18 +46,20 @@ defmodule AshAuthentication.Firebase.TokenVerifier do
            {:validate_auth, is_integer(fields["auth_time"]) and fields["auth_time"] <= now} do
       {:ok, fields["sub"], fields}
     else
-      {:jwt_header, _} -> {:error, :invalid_header}
-      {:verify, {false, _, _}} -> {:error, :invalid_signature}
-      {:verify, _} -> {:error, :malformed_payload}
-      {:validate_iss, _} -> {:error, :invalid_issuer}
-      {:validate_aud, _} -> {:error, :invalid_audience}
-      {:validate_sub, _} -> {:error, :invalid_sub}
-      {:validate_exp, _} -> {:error, :expired}
-      {:validate_iat, _} -> {:error, :invalid_iat}
-      {:validate_auth, _} -> {:error, :invalid_auth_time}
-      error -> error
+      {:jwt_header, _} -> error(:invalid_header)
+      {:verify, {false, _, _}} -> error(:invalid_signature)
+      {:verify, _} -> error(:malformed_payload)
+      {:validate_iss, _} -> error(:invalid_issuer)
+      {:validate_aud, _} -> error(:invalid_audience)
+      {:validate_sub, _} -> error(:invalid_sub)
+      {:validate_exp, _} -> error(:expired)
+      {:validate_iat, _} -> error(:invalid_iat)
+      {:validate_auth, _} -> error(:invalid_auth_time)
+      {:error, :key_not_found} -> error(:key_not_found)
     end
   end
+
+  defp error(reason), do: {:error, InvalidToken.exception(reason: reason)}
 
   defp get_public_key_or_refresh(kid) do
     case lookup_key(kid) do
