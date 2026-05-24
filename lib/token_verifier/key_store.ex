@@ -208,7 +208,7 @@ defmodule AshAuthentication.Firebase.TokenVerifier.KeyStore do
       {:ok, %{status: status, body: body}} ->
         {:error, "HTTP #{status}: #{String.slice(to_string(body), 0, 500)}"}
 
-      {:error, %Mint.TransportError{reason: :timeout}} ->
+      {:error, %{reason: :timeout}} ->
         {:error, :timeout}
 
       {:error, reason} ->
